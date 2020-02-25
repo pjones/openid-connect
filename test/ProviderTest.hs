@@ -28,7 +28,7 @@ import qualified Network.HTTP.Client.Internal as HTTP
 import qualified Network.HTTP.Types.Header as HTTP
 import Network.URI (parseURI)
 import OpenID.Connect.Client.Provider
-import OpenID.Connect.Client.Scope
+import OpenID.Connect.Scope
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit
 

@@ -87,11 +87,14 @@ library
   import: options, extensions, dependencies
   hs-source-dirs: src
   exposed-modules:
+    OpenID.Connect.Authentication
     OpenID.Connect.Client.Authentication
     OpenID.Connect.Client.Flow.AuthorizationCode
     OpenID.Connect.Client.Provider
-    OpenID.Connect.Client.Scope
     OpenID.Connect.Client.TokenResponse
+    OpenID.Connect.Discovery
+    OpenID.Connect.Scope
+    OpenID.Connect.TokenResponse
   other-modules:
     OpenID.Connect.Client.HTTP
     OpenID.Connect.JSON

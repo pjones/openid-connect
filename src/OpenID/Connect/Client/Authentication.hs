@@ -16,10 +16,8 @@ License: BSD-2-Clause
 
 -}
 module OpenID.Connect.Client.Authentication
-  ( ClientAuthentication(..)
-  , ClientSecret(..)
-  , Credentials(..)
-  , applyRequestAuthentication
+  ( applyRequestAuthentication
+  , module OpenID.Connect.Authentication
   ) where
 
 --------------------------------------------------------------------------------
@@ -33,8 +31,6 @@ import qualified Crypto.JOSE.JWK as JWK
 import Crypto.JWT (ClaimsSet)
 import qualified Crypto.JWT as JWT
 import Crypto.Random (MonadRandom(..))
-import Data.Aeson (ToJSON(..), FromJSON(..))
-import qualified Data.Aeson as Aeson
 import Data.ByteArray.Encoding
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as Char8
@@ -44,43 +40,7 @@ import Data.Text (Text)
 import qualified Data.Text.Encoding as Text
 import Data.Time.Clock (UTCTime, addUTCTime)
 import qualified Network.HTTP.Client as HTTP
-
---------------------------------------------------------------------------------
-data ClientAuthentication
-  = ClientSecretBasic
-  | ClientSecretPost
-  | ClientSecretJwt
-  | PrivateKeyJwt
-  | None
-  deriving stock (Eq, Ord, Show, Read)
-
-instance FromJSON ClientAuthentication where
-  parseJSON = Aeson.withText "Client Authentication" $ \case
-    "client_secret_basic" -> pure ClientSecretBasic
-    "client_secret_post"  -> pure ClientSecretPost
-    "client_secret_jwt"   -> pure ClientSecretJwt
-    "private_key_jwt"     -> pure PrivateKeyJwt
-    _                     -> pure None
-
-instance ToJSON ClientAuthentication where
-  toJSON = Aeson.String . \case
-    ClientSecretBasic -> "client_secret_basic"
-    ClientSecretPost  -> "client_secret_post"
-    ClientSecretJwt   -> "client_secret_jwt"
-    PrivateKeyJwt     -> "private_key_jwt"
-    None              -> "none"
-
---------------------------------------------------------------------------------
-data ClientSecret
-  = AssignedSecretText Text
-  | AssignedSecretKey Int Text
-  | PrivateKey Int JWK
-
---------------------------------------------------------------------------------
-data Credentials = Credentials
-  { assignedClientId :: Text
-  , clientSecret     :: ClientSecret
-  }
+import OpenID.Connect.Authentication
 
 --------------------------------------------------------------------------------
 applyRequestAuthentication
@@ -98,10 +58,10 @@ applyRequestAuthentication creds methods uri now body =
       | ClientSecretPost  `elem` methods -> pure . Just . useBody secret
       | ClientSecretBasic `elem` methods -> pure . Just . useBasic secret
       | otherwise                        -> pure . const Nothing
-    AssignedSecretKey sec key
+    AssignedAssertionText sec key
       | ClientSecretJwt `elem` methods   -> hmacWithKey sec key
       | otherwise                        -> pure . const Nothing
-    PrivateKey sec key
+    AssertionPrivateKey sec key
       | PrivateKeyJwt `elem` methods     -> signWithKey sec key
       | otherwise                        -> pure . const Nothing
 

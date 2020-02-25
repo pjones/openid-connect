@@ -16,9 +16,9 @@ License: BSD-2-Clause
 
 -}
 module OpenID.Connect.Client.TokenResponse
-  ( TokenResponse(..)
-  , decodeIdentityToken
+  ( decodeIdentityToken
   , verifyIdentityTokenClaims
+  , module OpenID.Connect.TokenResponse
   ) where
 
 --------------------------------------------------------------------------------
@@ -36,23 +36,8 @@ import Data.Functor.Identity (runIdentity)
 import Data.Text (Text)
 import qualified Data.Text.Encoding as Text
 import Data.Time.Clock (UTCTime)
-import GHC.Generics (Generic)
 import OpenID.Connect.Client.Provider
-import OpenID.Connect.JSON
-
---------------------------------------------------------------------------------
-data TokenResponse a = TokeResponse
-  { accessToken  :: Text
-  , expiresIn    :: Int
-  , idToken      :: a
-  , scope        :: Text
-  , tokenType    :: Text
-  , refreshToken :: Text
-  }
-  deriving stock (Generic, Functor)
-
-deriving via (GenericJSON (TokenResponse Text)) instance ToJSON   (TokenResponse Text)
-deriving via (GenericJSON (TokenResponse Text)) instance FromJSON (TokenResponse Text)
+import OpenID.Connect.TokenResponse
 
 --------------------------------------------------------------------------------
 decodeIdentityToken

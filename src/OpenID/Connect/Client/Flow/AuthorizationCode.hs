@@ -40,9 +40,9 @@ module OpenID.Connect.Client.Flow.AuthorizationCode
   , FlowError(..)
   , ResumeFinish
 
-  , module OpenID.Connect.Client.Scope
-  , module OpenID.Connect.Client.Provider
   , module OpenID.Connect.Client.Authentication
+  , module OpenID.Connect.Client.Provider
+  , module OpenID.Connect.Scope
   ) where
 
 --------------------------------------------------------------------------------
@@ -76,7 +76,7 @@ import Network.URI (URI(..), parseURI, uriToString)
 import OpenID.Connect.Client.Authentication
 import OpenID.Connect.Client.HTTP
 import OpenID.Connect.Client.Provider
-import OpenID.Connect.Client.Scope
+import OpenID.Connect.Scope
 import Web.Cookie (SetCookie)
 import qualified Web.Cookie as Cookie
 

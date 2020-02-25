@@ -35,17 +35,13 @@ import Control.Monad.Except (ExceptT(..), runExceptT)
 import Crypto.JOSE.JWK (JWKSet)
 import Data.Bifunctor (first)
 import Data.Functor ((<&>))
-import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Time.Clock (UTCTime)
-import GHC.Generics (Generic)
 import Network.HTTP.Client (requestFromURI_)
 import Network.URI (URI(..), parseURI)
-import OpenID.Connect.Client.Authentication
 import OpenID.Connect.Client.HTTP
-import OpenID.Connect.Client.Scope
-import OpenID.Connect.JSON
+import OpenID.Connect.Discovery
 
 --------------------------------------------------------------------------------
 type ProviderDiscoveryURI = URI
@@ -55,20 +51,6 @@ data DiscoveryError
   = JsonDecodingError String
   | InvalidUrlError Text
   deriving Show
-
---------------------------------------------------------------------------------
-data Discovery = Discovery
-  { issuer                            :: Text
-  , authorizationEndpoint             :: Text
-  , tokenEndpoint                     :: Maybe Text
-  , userinfoEndpoint                  :: Maybe Text
-  , jwksUri                           :: Text
-  , scopesSupported                   :: Maybe Scope
-  , responseTypesSupported            :: NonEmpty Text
-  , tokenEndpointAuthMethodsSupported :: [ClientAuthentication]
-  }
-  deriving stock (Generic, Show)
-  deriving (ToJSON, FromJSON) via GenericJSON Discovery
 
 --------------------------------------------------------------------------------
 data Provider = Provider

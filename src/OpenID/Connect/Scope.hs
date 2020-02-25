@@ -15,7 +15,7 @@ Copyright:
 License: BSD-2-Clause
 
 -}
-module OpenID.Connect.Client.Scope
+module OpenID.Connect.Scope
   ( Scope
   , openid
   , email
@@ -26,10 +26,9 @@ module OpenID.Connect.Client.Scope
   ) where
 
 --------------------------------------------------------------------------------
-import Data.Aeson (ToJSON, FromJSON)
 import Data.ByteString (ByteString)
 import Data.Function ((&))
-import Data.List.NonEmpty (NonEmpty)
+import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.String
 import Data.Text (Text)
@@ -37,10 +36,11 @@ import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import GHC.Generics (Generic)
 import Network.HTTP.Types (QueryItem)
+import OpenID.Connect.JSON
 
 --------------------------------------------------------------------------------
 newtype Scope = Scope
-  { unScope :: NonEmpty Text
+  { unScope :: Words
   }
   deriving stock (Generic, Show)
   deriving newtype Semigroup
@@ -48,7 +48,12 @@ newtype Scope = Scope
 
 --------------------------------------------------------------------------------
 instance IsString Scope where
-  fromString = Scope . pure . Text.pack
+  fromString s =
+    let t = Text.pack s
+    in case toWords t of
+         Nothing -> Scope (Words (t :| []))
+         Just w  -> Scope w
+
 
 --------------------------------------------------------------------------------
 -- | The @openid@ scope.
@@ -76,7 +81,7 @@ auth = openid <> email
 
 --------------------------------------------------------------------------------
 hasScope :: Scope -> Text -> Bool
-hasScope s t= (t `elem`) . NonEmpty.toList . unScope $ s
+hasScope s t= (t `elem`) . NonEmpty.toList . toWordList . unScope $ s
 
 --------------------------------------------------------------------------------
 scopeQueryItem :: Scope -> QueryItem
@@ -85,7 +90,5 @@ scopeQueryItem scope = ("scope", Just scopes)
     scopes :: ByteString
     scopes = (scope <> openid)
            & unScope
-           & NonEmpty.nub
-           & NonEmpty.toList
-           & Text.unwords
+           & fromWords
            & Text.encodeUtf8

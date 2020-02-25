@@ -21,10 +21,19 @@ module OpenID.Connect.JSON
   ( GenericJSON(..)
   , Aeson.ToJSON
   , Aeson.FromJSON
+  , Words(..)
+  , fromWords
+  , toWords
   ) where
 
 --------------------------------------------------------------------------------
+import Control.Category ((>>>))
+import Control.Monad (MonadPlus(..))
 import Data.Aeson as Aeson
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NonEmpty
+import Data.Text (Text)
+import qualified Data.Text as Text
 import GHC.Generics (Generic, Rep)
 
 --------------------------------------------------------------------------------
@@ -50,3 +59,30 @@ instance ( Generic a
          ) =>
   FromJSON (GenericJSON a) where
     parseJSON = fmap GenericJSON . Aeson.genericParseJSON aesonOptions
+
+--------------------------------------------------------------------------------
+newtype Words = Words
+  { toWordList :: NonEmpty Text
+  }
+  deriving stock (Generic, Show)
+  deriving newtype Semigroup
+
+instance ToJSON Words where
+  toJSON = fromWords >>> toJSON
+  toEncoding = fromWords >>> toEncoding
+
+instance FromJSON Words where
+  parseJSON = Aeson.withText "Space separated words" toWords
+
+--------------------------------------------------------------------------------
+fromWords :: Words -> Text
+fromWords = toWordList
+        >>> NonEmpty.nub
+        >>> NonEmpty.toList
+        >>> Text.unwords
+
+--------------------------------------------------------------------------------
+toWords :: MonadPlus m => Text -> m Words
+toWords = Text.words >>> \case
+  [] -> mzero
+  xs -> pure (Words $ NonEmpty.fromList xs)
