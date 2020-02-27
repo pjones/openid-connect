@@ -18,28 +18,32 @@ License: BSD-2-Clause
 module OpenID.Connect.Client.TokenResponse
   ( decodeIdentityToken
   , verifyIdentityTokenClaims
-  , module OpenID.Connect.TokenResponse
   ) where
 
 --------------------------------------------------------------------------------
 -- Imports:
-import Control.Lens ((.~), (^?))
+import Control.Lens ((^.), (.~), (^?))
 import Control.Monad.Except
 import qualified Crypto.JOSE.Compact as JOSE
 import qualified Crypto.JOSE.Error as JOSE
 import Crypto.JOSE.JWK (JWKSet)
 import Crypto.JWT (SignedJWT, ClaimsSet, JWTError)
 import Crypto.JWT as JWT
+import qualified Data.Aeson as Aeson
+import Data.Bool (bool)
 import qualified Data.ByteString.Lazy.Char8 as LChar8
 import Data.Function ((&))
 import Data.Functor.Identity (runIdentity)
+import qualified Data.HashMap.Strict as Map
 import Data.Text (Text)
 import qualified Data.Text.Encoding as Text
 import Data.Time.Clock (UTCTime)
+import OpenID.Connect.Authentication (ClientID)
 import OpenID.Connect.Client.Provider
 import OpenID.Connect.TokenResponse
 
 --------------------------------------------------------------------------------
+-- | Decode the compacted identity token into a 'SignedJWT'.
 decodeIdentityToken
   :: TokenResponse Text
   -> Either JOSE.Error (TokenResponse SignedJWT)
@@ -50,33 +54,59 @@ decodeIdentityToken token
   & fmap (<$ token)
 
 --------------------------------------------------------------------------------
+-- | Identity token verification and claim validation.
 verifyIdentityTokenClaims
   :: Discovery                -- ^ Provider discovery document.
-  -> JWT.Audience             -- ^ Intended audience.
+  -> ClientID                 -- ^ Intended audience.
   -> UTCTime                  -- ^ Current time.
   -> JWKSet                   -- ^ Available keys to try.
+  -> Text                     -- ^ Nonce.
   -> TokenResponse SignedJWT  -- ^ Signed identity token.
   -> Either JWTError (TokenResponse ClaimsSet)
-verifyIdentityTokenClaims disco audience now keys token =
+verifyIdentityTokenClaims disco clientId now keys nonce token =
     let JWKSet jwks = keys
     in foldr (\k -> either (const (verifyWithKey k)) Right)
              (Left (JWT.JWSError JOSE.NoUsableKeys)) jwks
   where
     verifyWithKey :: JWK -> Either JWTError (TokenResponse ClaimsSet)
     verifyWithKey key =
-      let settings = JWT.defaultJWTValidationSettings verifyAudience
+      let settings = JWT.defaultJWTValidationSettings (const True)
                    & allowedSkew     .~ 120
                    & issuerPredicate .~ verifyIssuer
                    & checkIssuedAt   .~ True
       in JWT.verifyClaimsAt settings key now (idToken token)
          & runExceptT
-         & runIdentity
+         & runIdentity >>= additionalValidation
          & fmap (<$ token)
-
-    verifyAudience :: JWT.StringOrURI -> Bool
-    verifyAudience = let JWT.Audience aud = audience in (`elem` aud)
 
     verifyIssuer :: JWT.StringOrURI -> Bool
     verifyIssuer = case issuer disco ^? JWT.stringOrUri of
       Nothing  -> const False
       Just iss -> (== iss)
+
+    verifyNonce :: ClaimsSet -> Bool
+    verifyNonce = claimEq "nonce" (Aeson.String nonce)
+
+    verifyAudience :: ClaimsSet -> Bool
+    verifyAudience claims =
+      case claims ^. claimAud of
+        Just (JWT.Audience [aud]) ->
+          Just aud == clientId ^? JWT.stringOrUri
+        _ -> False
+
+    verifyAzp :: ClaimsSet -> Bool
+    verifyAzp = claimEq "azp" (Aeson.String clientId)
+
+    additionalValidation :: ClaimsSet -> Either JWTError ClaimsSet
+    additionalValidation claims = do
+      bool (Left (JWT.JWTClaimsSetDecodeError "invalid nonce"))
+           (Right ()) (verifyNonce claims)
+      bool (Left JWT.JWTNotInAudience)
+           (Right ()) (verifyAudience claims || verifyAzp claims)
+      pure claims
+
+    claimEq :: Text -> Aeson.Value -> ClaimsSet -> Bool
+    claimEq key val claims =
+      case Map.lookup key (claims ^. JWT.unregisteredClaims) of
+        Nothing   -> False
+        Just val' -> val == val'

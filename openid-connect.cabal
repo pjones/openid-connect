@@ -3,7 +3,7 @@ cabal-version:       2.2
 --------------------------------------------------------------------------------
 name:         openid-connect
 version:      0.1.0.0
-synopsis:     An OpenID Connect library that does all the heavy lifting for you
+synopsis:     An OpenID Connect library that does all the heavy lifting for you.
 license:      BSD-2-Clause
 license-file: LICENSE
 author:       Peter Jones <pjones@devalot.com>
@@ -15,6 +15,13 @@ category:     Network
 
 --------------------------------------------------------------------------------
 description:
+  This package provides an OpenID Connect 1.0 compliant interface for clients and
+  some useful types and functions for providers.
+  .
+  The primary goals of this package are security and usability.
+  .
+  To get started, take a look at the "OpenID.Connect.Client.Flow.AuthorizationCode"
+  module.
 
 --------------------------------------------------------------------------------
 extra-source-files:
@@ -67,20 +74,21 @@ common extensions
 
 --------------------------------------------------------------------------------
 common dependencies
-  build-depends: base         >= 4.9   && < 5.0
-               , aeson        >= 1.3   && < 1.5
-               , bytestring   >= 0.10  && < 0.11
-               , cookie       >= 0.4   && < 0.5
-               , cryptonite   >= 0.25  && < 1.0
-               , http-client  >= 0.6   && < 0.7
-               , http-types   >= 0.12  && < 0.13
-               , jose         >= 0.8   && < 0.9
-               , lens         >= 4.0   && < 5.0
-               , memory       >= 0.14  && < 1.0
-               , mtl          >= 2.2   && < 2.3
-               , network-uri  >= 2.6   && < 2.7
-               , text         >= 1.2   && < 1.3
-               , time         >= 1.8   && < 2.0
+  build-depends: base                 >= 4.9   && < 5.0
+               , aeson                >= 1.3   && < 1.5
+               , bytestring           >= 0.10  && < 0.11
+               , cookie               >= 0.4   && < 0.5
+               , cryptonite           >= 0.25  && < 1.0
+               , http-client          >= 0.6   && < 0.7
+               , http-types           >= 0.12  && < 0.13
+               , jose                 >= 0.8   && < 0.9
+               , lens                 >= 4.0   && < 5.0
+               , memory               >= 0.14  && < 1.0
+               , mtl                  >= 2.2   && < 2.3
+               , network-uri          >= 2.6   && < 2.7
+               , text                 >= 1.2   && < 1.3
+               , time                 >= 1.8   && < 2.0
+               , unordered-containers >= 0.2   && < 0.3
 
 --------------------------------------------------------------------------------
 library
@@ -88,15 +96,16 @@ library
   hs-source-dirs: src
   exposed-modules:
     OpenID.Connect.Authentication
-    OpenID.Connect.Client.Authentication
     OpenID.Connect.Client.Flow.AuthorizationCode
     OpenID.Connect.Client.Provider
-    OpenID.Connect.Client.TokenResponse
-    OpenID.Connect.Discovery
+    OpenID.Connect.Provider.Key
     OpenID.Connect.Scope
     OpenID.Connect.TokenResponse
   other-modules:
+    OpenID.Connect.Client.TokenResponse
+    OpenID.Connect.Client.Authentication
     OpenID.Connect.Client.HTTP
+    OpenID.Connect.Discovery
     OpenID.Connect.JSON
 
 --------------------------------------------------------------------------------
@@ -110,5 +119,8 @@ test-suite test
                , tasty-hunit    >= 0.10 && < 0.11
 
   other-modules:
-    HTTP
-    ProviderTest
+    Client
+    Client.AuthorizationCodeTest
+    Client.ProviderTest
+    DiscoveryTest
+    HttpHelper

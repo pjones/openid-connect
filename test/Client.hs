@@ -15,16 +15,18 @@ Copyright:
 License: BSD-2-Clause
 
 -}
-module Main (main) where
+module Client
+  ( test
+  ) where
 
 --------------------------------------------------------------------------------
-import Test.Tasty
-import qualified Client
-import qualified DiscoveryTest
+import Test.Tasty (TestTree, testGroup)
+import qualified Client.ProviderTest
+import qualified Client.AuthorizationCodeTest
 
 --------------------------------------------------------------------------------
-main :: IO ()
-main = defaultMain $ testGroup "Tests"
-  [ Client.test
-  , DiscoveryTest.test
+test :: TestTree
+test = testGroup "Client"
+  [ Client.ProviderTest.test
+  , Client.AuthorizationCodeTest.test
   ]

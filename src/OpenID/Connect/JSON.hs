@@ -37,14 +37,20 @@ import qualified Data.Text as Text
 import GHC.Generics (Generic, Rep)
 
 --------------------------------------------------------------------------------
+-- | Type wrapper for automatic JSON deriving.
 newtype GenericJSON a = GenericJSON
   { genericJSON :: a }
 
 --------------------------------------------------------------------------------
+-- | Default JSON decoding/encoding options.
 aesonOptions :: Aeson.Options
 aesonOptions = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . dropWhile (== '_')
-  }
+    { Aeson.fieldLabelModifier     = snakeCase
+    , Aeson.constructorTagModifier = snakeCase
+    , Aeson.allNullaryToStringTag  = True
+    }
+  where
+    snakeCase = Aeson.camelTo2 '_' . dropWhile (== '_')
 
 instance ( Generic a
          , Aeson.GToJSON Aeson.Zero (Rep a)
@@ -61,6 +67,7 @@ instance ( Generic a
     parseJSON = fmap GenericJSON . Aeson.genericParseJSON aesonOptions
 
 --------------------------------------------------------------------------------
+-- | Space separated list of words.
 newtype Words = Words
   { toWordList :: NonEmpty Text
   }
@@ -75,6 +82,7 @@ instance FromJSON Words where
   parseJSON = Aeson.withText "Space separated words" toWords
 
 --------------------------------------------------------------------------------
+-- | Encode a list of words into 'Text'.
 fromWords :: Words -> Text
 fromWords = toWordList
         >>> NonEmpty.nub
@@ -82,6 +90,7 @@ fromWords = toWordList
         >>> Text.unwords
 
 --------------------------------------------------------------------------------
+-- | Decode a list of words from 'Text'.
 toWords :: MonadPlus m => Text -> m Words
 toWords = Text.words >>> \case
   [] -> mzero

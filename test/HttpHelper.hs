@@ -15,9 +15,11 @@ Copyright:
 License: BSD-2-Clause
 
 -}
-module HTTP
+module HttpHelper
   ( FakeHTTPS(..)
   , defaultFakeHTTPS
+  , fakeHttpsFromByteString
+  , httpNoOp
   , mkHTTPS
   , runHTTPS
   ) where
@@ -35,17 +37,25 @@ data FakeHTTPS = FakeHTTPS
   { fakeStatus   :: HTTP.Status
   , fakeVersion  :: HTTP.HttpVersion
   , fakeHeaders  :: HTTP.ResponseHeaders
-  , fakeDataFile :: FilePath
+  , fakeData     :: IO LChar8.ByteString
   }
 
 --------------------------------------------------------------------------------
 defaultFakeHTTPS :: FilePath -> FakeHTTPS
-defaultFakeHTTPS file =
+defaultFakeHTTPS = defaultFakeHTTPS' . LChar8.readFile
+
+--------------------------------------------------------------------------------
+fakeHttpsFromByteString :: LChar8.ByteString -> FakeHTTPS
+fakeHttpsFromByteString = defaultFakeHTTPS' . pure
+
+--------------------------------------------------------------------------------
+defaultFakeHTTPS' :: IO LChar8.ByteString -> FakeHTTPS
+defaultFakeHTTPS' rdata =
   FakeHTTPS
     { fakeStatus = HTTP.status200
     , fakeVersion = HTTP.http20
     , fakeHeaders = headers
-    , fakeDataFile = file
+    , fakeData    = rdata
     }
   where
     headers :: HTTP.ResponseHeaders
@@ -57,10 +67,18 @@ defaultFakeHTTPS file =
       ]
 
 --------------------------------------------------------------------------------
+httpNoOp
+  :: MonadIO m
+  => HTTP.Request
+  -> m (HTTP.Response LChar8.ByteString)
+httpNoOp _ = fail "httpNoOp"
+
+--------------------------------------------------------------------------------
 mkHTTPS
   :: MonadIO m
   => FakeHTTPS
-  -> (HTTP.Request -> StateT HTTP.Request m (HTTP.Response LChar8.ByteString))
+  -> HTTP.Request
+  -> StateT HTTP.Request m (HTTP.Response LChar8.ByteString)
 mkHTTPS FakeHTTPS{..} request = do
   put request
 
@@ -68,7 +86,7 @@ mkHTTPS FakeHTTPS{..} request = do
     <$> pure fakeStatus
     <*> pure fakeVersion
     <*> pure fakeHeaders
-    <*> liftIO (LChar8.readFile fakeDataFile)
+    <*> liftIO fakeData
     <*> pure mempty
     <*> pure (HTTP.ResponseClose (pure ()))
 
@@ -76,4 +94,4 @@ mkHTTPS FakeHTTPS{..} request = do
 runHTTPS
   :: StateT HTTP.Request m a
   -> m (a, HTTP.Request)
-runHTTPS = (`runStateT` HTTP.defaultRequest)
+runHTTPS = (`runStateT` (HTTP.defaultRequest { HTTP.method = "NONE" }))

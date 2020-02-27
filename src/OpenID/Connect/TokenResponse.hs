@@ -37,7 +37,7 @@ import OpenID.Connect.JSON
 --
 -- RFC 6749 section 5.1. with an additional field specified in OpenID
 -- Connect Core 1.0 section 3.1.3.3.
-data TokenResponse a = TokeResponse
+data TokenResponse a = TokenResponse
   { accessToken :: Text
     -- ^ The access token issued by the authorization server.
 

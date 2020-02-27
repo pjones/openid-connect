@@ -15,17 +15,13 @@ Copyright:
 License: BSD-2-Clause
 
 -}
-module ProviderTest
+module DiscoveryTest
   ( test
   ) where
 
 --------------------------------------------------------------------------------
-import Crypto.JOSE.JWK (JWKSet(..))
-import qualified Data.Aeson as Aeson
-import qualified Data.ByteString.Lazy.Char8 as LChar8
-import HTTP
+import HttpHelper
 import qualified Network.HTTP.Client.Internal as HTTP
-import qualified Network.HTTP.Types.Header as HTTP
 import Network.URI (parseURI)
 import OpenID.Connect.Client.Provider
 import OpenID.Connect.Scope
@@ -34,9 +30,8 @@ import Test.Tasty.HUnit
 
 --------------------------------------------------------------------------------
 test :: TestTree
-test = testGroup "Provider"
+test = testGroup "Discovery"
   [ testCase "discovery" testDiscoveryParsing
-  , testCase "JWK Set" testKeyParsing
   ]
 
 --------------------------------------------------------------------------------
@@ -45,7 +40,7 @@ testDiscoveryParsing = do
   let fake = defaultFakeHTTPS "test/data/discovery.txt"
       https = mkHTTPS fake
   url <- maybe (fail "WTF?") pure (parseURI "https://accounts.google.com/")
-  (res, req) <- runHTTPS (discovery url https)
+  (res, req) <- runHTTPS (discovery https url)
 
   HTTP.path req   @?= "/.well-known/openid-configuration"
   HTTP.method req @?= "GET"
@@ -62,29 +57,3 @@ testDiscoveryParsing = do
       fmap (`hasScope` "email") scopesSupported   @?= Just True
       fmap (`hasScope` "profile") scopesSupported @?= Just True
       fmap show cache                             @?= Just "2020-02-20 20:40:21 UTC"
-
---------------------------------------------------------------------------------
-testKeyParsing :: Assertion
-testKeyParsing = do
-  let fake = (defaultFakeHTTPS "test/data/certs.txt")
-        { fakeHeaders =
-            [ (HTTP.hDate, "Thu, 20 Feb 2020 22:26:11 GMT")
-            , (HTTP.hExpires, "Fri, 21 Feb 2020 03:59:07 GMT")
-            , (HTTP.hCacheControl, "public, max-age=19976, must-revalidate, no-transform")
-            ]
-        }
-
-      https = mkHTTPS fake
-
-  Just disco <- Aeson.decode <$> LChar8.readFile "test/data/discovery.txt"
-  (res, req) <- runHTTPS (keysFromDiscovery disco https)
-
-  HTTP.path req   @?= "/oauth2/v3/certs"
-  HTTP.method req @?= "GET"
-  HTTP.secure req @?= True
-
-  case res of
-    Left e -> fail (show e)
-    Right (JWKSet jwks, cache) -> do
-      length jwks @?= 2
-      fmap show cache @?= Just "2020-02-21 03:59:07 UTC"

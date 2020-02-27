@@ -14,33 +14,51 @@ Copyright:
 
 License: BSD-2-Clause
 
+The /Authorization Code/ Flow as defined in OpenID Connect 1.0.
+
+The 'Request' and 'Response' types encode the flow in a way that
+ensures the proper order of operations.  To perform a single step in
+the flow construct a 'Request' object and then apply the 'step'
+function.
+
+Flow outline:
+
+  1. Perform (and optionally cache) the provider's discovery document
+     and keys.  This is done with a combination of
+     'OpenID.Connect.Client.Provider.discovery' and
+     'OpenID.Connect.Client.Provider.keysFromDiscovery'.
+
+  2. Send the end-user to the provider for authentication by
+     constructing an 'Authenticate' request and apply the 'step'
+     function.  The 'step' function will generate a 'RedirectTo'
+     response with a URI and cookie.
+
+  3. The provider will redirect the end-user back to your site with
+     some query parameters.  Bundle those up into a 'Finish' request
+     and apply the 'step' function.  It will respond with a validated
+     identity token if everything checks out.
 -}
 module OpenID.Connect.Client.Flow.AuthorizationCode
-  ( Request(..)
+  (
+    -- * Request and Response
+    Request(..)
   , Response(..)
+
+    -- * Stepping through the flow
   , step
-  , ClientURI
-  , Secrets
-  , generateRandomSecrets
-  , generateRandomSecretsIO
 
-  , AuthenticationRequest
+    -- * Authentication settings
   , defaultAuthenticationRequest
-  , authRequestDisplay
-  , authRequestPrompt
-  , authRequestMaxAge
-  , authRequestUiLocales
-  , authRequestIdTokenHint
-  , authRequestLoginHint
-  , authRequestAcrValues
-  , authRequestOtherParams
 
+    -- * End-user provided details
   , UserReturnFromRedirect(..)
 
+    -- * Errors that can occur
   , FlowError(..)
-  , ResumeFinish
 
-  , module OpenID.Connect.Client.Authentication
+    -- * Ancillary types and re-exports
+  , HTTPS
+  , module OpenID.Connect.Authentication
   , module OpenID.Connect.Client.Provider
   , module OpenID.Connect.Scope
   ) where
@@ -48,19 +66,18 @@ module OpenID.Connect.Client.Flow.AuthorizationCode
 --------------------------------------------------------------------------------
 -- Imports:
 import Control.Category ((>>>))
-import Control.Lens ((^?))
 import Control.Monad.Except
 import qualified Crypto.Hash as Hash
 import qualified Crypto.JOSE.Error as JOSE
 import Crypto.JOSE.JWK (JWKSet)
 import Crypto.JWT (SignedJWT, ClaimsSet, JWTError)
-import qualified Crypto.JWT as JWT
 import Crypto.Random (MonadRandom(..))
 import Data.Bifunctor (bimap, first)
 import Data.ByteArray.Encoding
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as Char8
+import qualified Data.ByteString.Lazy as LByteString
 import Data.Function ((&))
 import Data.Functor ((<&>))
 import Data.List.NonEmpty (NonEmpty)
@@ -73,41 +90,30 @@ import Data.Time.Clock (UTCTime)
 import qualified Network.HTTP.Client as HTTP
 import Network.HTTP.Types (QueryItem, renderQuery)
 import Network.URI (URI(..), parseURI, uriToString)
+import OpenID.Connect.Authentication
 import OpenID.Connect.Client.Authentication
 import OpenID.Connect.Client.HTTP
 import OpenID.Connect.Client.Provider
 import OpenID.Connect.Scope
+import OpenID.Connect.TokenResponse (TokenResponse)
 import Web.Cookie (SetCookie)
 import qualified Web.Cookie as Cookie
 
 import OpenID.Connect.Client.TokenResponse
-  ( TokenResponse
-  , decodeIdentityToken
+  ( decodeIdentityToken
   , verifyIdentityTokenClaims
   )
 
 --------------------------------------------------------------------------------
--- | The client (relying party) redirection URL previously registered
--- with the OpenID Provider (i.e. a URL to an endpoint on your web
--- site that receives authentication details from the provider via the
--- end-user's browser).
---
--- After the provider has authenticated the end-user, they will be
--- redirected to this URL to continue the flow.
---
--- NOTE: This URL must match exactly with the one registered with the
--- provider.  If they don't match the provider will not redirect the
--- end-user back to your site.
-type ClientURI = URI
-
---------------------------------------------------------------------------------
+-- | Internal type for calculating secrets.
 data Secrets = Secrets
   { requestForgeryProtectionToken :: ByteString
-  , replayProtectionNonce :: ByteString
-  , valueForHttpOnlyCookie :: ByteString
+  , replayProtectionNonce         :: ByteString
+  , valueForHttpOnlyCookie        :: ByteString
   }
 
 --------------------------------------------------------------------------------
+-- | Generate a new set of secrets.
 generateRandomSecrets :: forall m. MonadRandom m => m Secrets
 generateRandomSecrets = do
   bytes <- getRandomBytes 64 :: m ByteString
@@ -121,16 +127,21 @@ generateRandomSecrets = do
     }
 
 --------------------------------------------------------------------------------
-generateRandomSecretsIO :: IO Secrets
-generateRandomSecretsIO = generateRandomSecrets
-
---------------------------------------------------------------------------------
+-- | Extract the expected state value from the session cookie.
 expectedStateParam :: ByteString -> Either FlowError ByteString
 expectedStateParam cookie
   = extractTokenFromSessionCookie cookie (ByteString.drop 32)
   & first (const InvalidStateParameterError)
 
 --------------------------------------------------------------------------------
+-- | Given the session cookie, return the expected nonce value.
+expectedNonce :: ByteString -> Either FlowError Text
+expectedNonce cookie
+  = extractTokenFromSessionCookie cookie (ByteString.take 32)
+  & bimap (const InvalidNonceFromProviderError) Text.decodeUtf8
+
+--------------------------------------------------------------------------------
+-- | Higher-order function of extracting bytes from a session cookie.
 extractTokenFromSessionCookie
   :: ByteString                 -- ^ The session cookie
   -> (ByteString -> ByteString) -- ^ Function to extract token bytes
@@ -143,41 +154,20 @@ extractTokenFromSessionCookie cookie f =
                 in convertToBase Base64URLUnpadded hash
 
 --------------------------------------------------------------------------------
--- 3.1.2.1.  Authentication Request
-data AuthenticationRequest = AuthenticationRequest
-  { authRequestRedirectURI  :: ClientURI
-  , authRequestScope        :: Scope
-  , authRequestResponseType :: ByteString
-  , authRequestClientId     :: Text
-  , authRequestState        :: ByteString
-  , authRequestNonce        :: ByteString
-  , authRequestCookie       :: ByteString
-  , authRequestDisplay      :: Maybe ByteString
-  , authRequestPrompt       :: Maybe ByteString
-  , authRequestMaxAge       :: Maybe Int
-  , authRequestUiLocales    :: Maybe (NonEmpty Text)
-  , authRequestIdTokenHint  :: Maybe ByteString
-  , authRequestLoginHint    :: Maybe Text
-  , authRequestAcrValues    :: Maybe (NonEmpty Text)
-  , authRequestOtherParams  :: [QueryItem]
-  }
-
---------------------------------------------------------------------------------
+-- | Create an 'AuthenticationRequest' value for the authorization
+-- code flow.
+--
+-- @since 0.1.0.0
 defaultAuthenticationRequest
-  :: ClientURI
-  -> Scope
-  -> Credentials
-  -> Secrets
-  -> AuthenticationRequest
-defaultAuthenticationRequest redir scope creds secrets =
+  :: Scope                 -- ^ Requested scope.
+  -> Credentials           -- ^ Provider assigned credentials.
+  -> AuthenticationRequest -- ^ An 'AuthenticationRequest'.
+defaultAuthenticationRequest scope creds =
   AuthenticationRequest
-    { authRequestRedirectURI  = redir
+    { authRequestRedirectURI  = clientRedirectUri creds
     , authRequestScope        = scope
     , authRequestResponseType = "code"
     , authRequestClientId     = assignedClientId creds
-    , authRequestState        = requestForgeryProtectionToken secrets
-    , authRequestNonce        = replayProtectionNonce secrets
-    , authRequestCookie       = valueForHttpOnlyCookie secrets
     , authRequestDisplay      = Nothing
     , authRequestPrompt       = Nothing
     , authRequestMaxAge       = Nothing
@@ -189,30 +179,61 @@ defaultAuthenticationRequest redir scope creds secrets =
     }
 
 --------------------------------------------------------------------------------
+-- | Values to collect from the end-user after they return from
+-- provider authentication as per §3.1.2.5.
+--
+-- When the end-user is sent to the 'ClientRedirectURI' they /must/
+-- provide the following values.  If any of these fields are not
+-- provided by the end-user you should assume the authentication
+-- failed.
+--
+-- If the @state@ and/or @code@ parameters are missing in the HTTP
+-- request you should look for an @error@ query parameter as specified
+-- in §3.1.2.6.
+--
+-- @since 0.1.0.0
 data UserReturnFromRedirect = UserReturnFromRedirect
   { afterRedirectSessionCookie :: ByteString
+    -- ^ The end-user /must/ provide a cookie value set by the
+    -- 'RedirectTo' response.  This is needed to validate the @state@
+    -- parameter and the @nonce@ claim in the identity token.
+
   , afterRedirectCodeParam     :: ByteString
+    -- ^ The @code@ parameter which contains the authorization code.
+
   , afterRedirectStateParam    :: ByteString
+    -- ^ The @state@ parameter which is used to prevent request
+    -- forgery.
   }
 
 --------------------------------------------------------------------------------
-type ResumeFinish
-  = JWKSet -> UTCTime -> Either FlowError (TokenResponse ClaimsSet)
-
---------------------------------------------------------------------------------
+-- | Errors that may occur during the authentication code flow.
+--
+-- @since 0.1.0.0
 data FlowError
   = ProviderDiscoveryError DiscoveryError
+    -- ^ Something is wrong with the discovery document.
 
   | InvalidStateParameterError
+    -- ^ The @state@ query parameter provided by the end-user doesn't
+    -- match their session cookie.  It's possible that the current
+    -- request was forged and therefore didn't originate from an
+    -- actual end-user.
 
   | InvalidNonceFromProviderError
+    -- ^ The @nonce@ claim in the identity token doesn't match the
+    -- value in the end-user's session cookie.  It's possible that the
+    -- response from the provider is a replay of a previous response.
 
   | ProviderMissingTokenEndpointError
-    -- ^ This provider does not support the Authorization Code flow.
+    -- ^ The provider does not support the Authorization Code flow.
+    -- To work with this provider you must use another flow type
+    -- (i.e. implicit or hybrid).
 
   | InvalidProviderTokenEndpointError Text
     -- ^ The provider's discovery document includes a @token_endpoint@
-    -- which is not a valid URL.
+    -- which is not a valid URL.  The invalid URL is provided for
+    -- reference.
 
   | NoAuthenticationMethodsAvailableError
     -- ^ The provided 'Credentials' do not include any authentication
@@ -221,29 +242,77 @@ data FlowError
     -- make a token exchange request with this provider without using
     -- a different set of 'Credentials'.
 
-  | InvalidProviderTokenResponseError
-    -- ^ The provider responded with a token that we could not parse.
+  | InvalidProviderTokenResponseError Text
+    -- ^ While exchanging an authorization code for an identity token
+    -- the provider responded in a way that we couldn't parse.  A
+    -- decoding error message is provided for debugging.
 
   | TokenDecodingError JOSE.Error
+    -- ^ The 'TokenResponse' from the provider failed to decode or
+    -- validate.  More information is provided by the @jose@ error.
 
-  | MalformedClientIdError
-    -- ^ The assigned @client_id@ cannot be translated to a JSON string.
+  | IdentityTokenValidationFailed JWTError
+    -- ^ The identity token from the provider is invalid (i.e. one of
+    -- the claims is incorrect) or the digital signature on the token
+    -- doesn't match any of the keys in the provided key set.
 
-  | IdentityTokenValidationFailed JWTError ResumeFinish
+  deriving Show
 
 --------------------------------------------------------------------------------
+-- | A type representing each step in the authorization code flow.
+--
+-- @since 0.1.0.0
 data Request
-  = Initial ProviderDiscoveryURI
-  | Authenticate Discovery AuthenticationRequest
-  | Finish Discovery JWKSet Credentials ClientURI UserReturnFromRedirect UTCTime
+  = Authenticate Discovery AuthenticationRequest
+    -- ^ __Step 1: Send the end-user to the provider.__
+    --
+    -- This request will create a URI pointing to the provider's
+    -- authorization end point and a session cookie that must be set
+    -- in the end-user's browser.
+    --
+    -- To create a 'Discovery' value, use the
+    -- 'OpenID.Connect.Client.Provider.discovery' function.
+    --
+    -- To create an 'AuthenticationRequest' value use the
+    -- 'defaultAuthenticationRequest' function.
+
+  | Finish UTCTime Provider Credentials UserReturnFromRedirect
+    -- ^ __Step 2. Turn the end-user's authorization token into an identity token.__
+    --
+    -- When the end-user returns from the provider they will make a
+    -- request to your site with some query parameters and a session
+    -- cookie.  With those values in hand, this constructor represents
+    -- a request to receive and validate an identity token from the
+    -- provider.
+    --
+    -- In order to create this request type you'll need a few other
+    -- records:
+    --
+    --   * The current time given as a 'UTCTime'
+    --   * A 'Provider' record (discovery document and key set)
+    --   * Your client 'Credentials'
+    --   * The request details from the end-user in 'UserReturnFromRedirect'
 
 --------------------------------------------------------------------------------
+-- | A type representing the outcome of an authorization code flow step.
+--
+-- @since 0.1.0.0
 data Response
-  = ProviderFound Provider (Maybe UTCTime)
-    -- ^ A provider that you can use with the 'Authenticate' request.
-
-  | RedirectTo URI (ByteString -> SetCookie)
-    -- ^ Send the end-user to this URI.
+  = RedirectTo URI (ByteString -> SetCookie)
+    -- ^ Send the end-user to this URI after setting a cookie.
+    --
+    -- The function for generating a cookie accepts the name of the
+    -- cookie.  This allows you to give the cookie any name you
+    -- choose.  Just be sure to retrieve the same cookie from the
+    -- end-user when creating the 'UserReturnFromRedirect' value.
+    --
+    -- The returned cookie has all of its security-related features
+    -- enabled.  Depending on your hosting requirements you may need
+    -- to use the @cookie@ package to loosen these restrictions.
+    --
+    -- Setting (and retrieving) the given cookie is mandatory.  It is
+    -- used to cryptographically derive the @state@ and @nonce@ values
+    -- for request forgery protection and replay protection.
 
   | Success (TokenResponse ClaimsSet)
     -- ^ Successful authentication.
@@ -252,36 +321,46 @@ data Response
     -- ^ Failed authentication.
 
 --------------------------------------------------------------------------------
+-- | Process a single step in the authorization code flow.
+--
+-- You must provide a function that can be used to make 'HTTPS'
+-- requests to the provider.  That function should catch exceptions
+-- and treat them as authentication failures.
+--
+-- The only other requirement/capability of this function is to
+-- generate random values via 'MonadRandom'.
+--
+-- @since 0.1.0.0
 step :: MonadRandom m => HTTPS m -> Request -> m Response
 step https = \case
-  Initial url -> discoveryAndKeys url https >>= \case
-    Left e -> pure (Failed (ProviderDiscoveryError e))
-    Right (p, c) -> pure (ProviderFound p c)
-
-  Authenticate disco req ->
-    makeRedirectURI disco req
-      & either Failed (`RedirectTo` makeSessionCookie req)
+  Authenticate disco req -> do
+    let uri = authRequestRedirectURI req
+    secrets <- generateRandomSecrets
+    makeRedirectURI secrets disco req
+      & either Failed (`RedirectTo` makeSessionCookie secrets uri)
       & pure
 
-  Finish disco keys creds redir user now -> do
+  Finish now (Provider disco keys) creds user -> do
     r <- runExceptT $ do
       _ <- ExceptT (pure (verifyPostRedirectRequest user))
-      token <- ExceptT (exchangeCodeForIdentityToken https now disco creds redir user)
-      ExceptT (pure (extractClaimsSetFromTokenResponse disco creds token keys now))
+      token <- ExceptT (exchangeCodeForIdentityToken https now disco creds user)
+      ExceptT (pure (extractClaimsSetFromTokenResponse disco creds token keys now user))
     pure (either Failed Success r)
 
 --------------------------------------------------------------------------------
+-- | Create the provider authorization redirect URI for the end-user.
 makeRedirectURI
-  :: Discovery
+  :: Secrets
+  -> Discovery
   -> AuthenticationRequest
   -> Either FlowError URI
-makeRedirectURI disco AuthenticationRequest{..} =
+makeRedirectURI secrets disco AuthenticationRequest{..} =
   let uriText = authorizationEndpoint disco
   in case forceHTTPS <$> parseURI (Text.unpack uriText) of
-    Nothing -> Left (ProviderDiscoveryError (InvalidUrlError uriText))
+    Nothing -> Left (ProviderDiscoveryError (InvalidUriError uriText))
     Just uri -> Right $ uri
       { uriQuery = Char8.unpack
-          (renderQuery False (params <> authRequestOtherParams))
+          (renderQuery True (params <> authRequestOtherParams))
       }
 
   where
@@ -290,8 +369,8 @@ makeRedirectURI disco AuthenticationRequest{..} =
       [ ("response_type", Just authRequestResponseType)
       , ("client_id",     Just (Text.encodeUtf8 authRequestClientId))
       , ("redirect_uri",  Just redir)
-      , ("nonce",         Just authRequestNonce)
-      , ("state",         Just authRequestState)
+      , ("nonce",         Just (replayProtectionNonce secrets))
+      , ("state",         Just (requestForgeryProtectionToken secrets))
       , ("display",       authRequestDisplay)
       , ("prompt",        authRequestPrompt)
       , ("max_age",       Char8.pack . show <$> authRequestMaxAge)
@@ -309,18 +388,20 @@ makeRedirectURI disco AuthenticationRequest{..} =
     toWords = Text.encodeUtf8 . Text.unwords . NonEmpty.toList
 
 --------------------------------------------------------------------------------
-makeSessionCookie :: AuthenticationRequest -> ByteString -> SetCookie
-makeSessionCookie AuthenticationRequest{..} name =
+-- | Create a session cookie for the end-user.
+makeSessionCookie :: Secrets -> ClientRedirectURI -> ByteString -> SetCookie
+makeSessionCookie Secrets{valueForHttpOnlyCookie} uri name =
   Cookie.defaultSetCookie
     { Cookie.setCookieName     = name
-    , Cookie.setCookieValue    = authRequestCookie
-    , Cookie.setCookiePath     = Just (Char8.pack (uriPath authRequestRedirectURI))
+    , Cookie.setCookieValue    = valueForHttpOnlyCookie
+    , Cookie.setCookiePath     = Just (Char8.pack (uriPath uri))
     , Cookie.setCookieHttpOnly = True
     , Cookie.setCookieSecure   = True
     , Cookie.setCookieSameSite = Just Cookie.sameSiteStrict
     }
 
 --------------------------------------------------------------------------------
+-- | Validate the @state@ parameter from the end-user.
 verifyPostRedirectRequest :: UserReturnFromRedirect -> Either FlowError ()
 verifyPostRedirectRequest UserReturnFromRedirect{..} = do
   expectState <- expectedStateParam afterRedirectSessionCookie
@@ -336,41 +417,41 @@ exchangeCodeForIdentityToken
   -> UTCTime
   -> Discovery
   -> Credentials
-  -> ClientURI
   -> UserReturnFromRedirect
   -> m (Either FlowError (TokenResponse SignedJWT))
-exchangeCodeForIdentityToken https now disco creds redir user =
-    -- Is this line terrible?  It composes a monadic action that
-    -- results in an Either with a pure function that produces an
-    -- Either.
-    performRequest <&> (>>= processResponse)
+exchangeCodeForIdentityToken https now disco creds user = do
+    res <- performRequest
+    pure (processResponse =<< res)
   where
-    performRequest :: m (Either FlowError (HTTP.Response LByteString))
+    performRequest :: m (Either FlowError (HTTP.Response LByteString.ByteString))
     performRequest = runExceptT $ do
       uri <- maybe
         (throwError ProviderMissingTokenEndpointError) pure
         (tokenEndpoint disco)
       req <- maybe
         (throwError (InvalidProviderTokenEndpointError uri)) pure
-        (HTTP.parseUrlThrow (Text.unpack uri))
-      applyRequestAuthentication creds
-        (tokenEndpointAuthMethodsSupported disco)
-          uri now body req >>= \case
-            Nothing -> throwError NoAuthenticationMethodsAvailableError
-            Just r  -> lift (https r)
+        (requestFromURI (Left uri))
+      applyRequestAuthentication creds authMethods
+        uri now body req >>= \case
+          Nothing -> throwError NoAuthenticationMethodsAvailableError
+          Just r  -> lift (https r)
 
     processResponse
-      :: HTTP.Response LByteString
+      :: HTTP.Response LByteString.ByteString
       -> Either FlowError (TokenResponse SignedJWT)
     processResponse res =
       parseResponse res
-      & bimap (const InvalidProviderTokenResponseError) fst
+      & bimap (InvalidProviderTokenResponseError . Text.pack) fst
       >>= (decodeIdentityToken >>> first TokenDecodingError)
+
+    authMethods :: [ClientAuthentication]
+    authMethods = maybe [ClientSecretPost] NonEmpty.toList
+      (tokenEndpointAuthMethodsSupported disco)
 
     body :: [ (ByteString, ByteString) ]
     body  = [ ("grant_type", "authorization_code")
             , ("code", afterRedirectCodeParam user)
-            , ("redirect_uri", Char8.pack (uriToString id redir []))
+            , ("redirect_uri", Char8.pack (uriToString id (clientRedirectUri creds) []))
             , ("client_id", Text.encodeUtf8 (assignedClientId creds))
             ]
 
@@ -382,12 +463,9 @@ extractClaimsSetFromTokenResponse
   -> TokenResponse SignedJWT
   -> JWKSet
   -> UTCTime
+  -> UserReturnFromRedirect
   -> Either FlowError (TokenResponse ClaimsSet)
-extractClaimsSetFromTokenResponse disco creds token keys time =
-  case assignedClientId creds ^? JWT.stringOrUri of
-    Nothing -> Left MalformedClientIdError
-    Just sOrU ->
-      let aud  = JWT.Audience [sOrU]
-          self = extractClaimsSetFromTokenResponse disco creds token
-          fin  = verifyIdentityTokenClaims disco aud time keys token
-      in fin & first (`IdentityTokenValidationFailed` self)
+extractClaimsSetFromTokenResponse disco creds token keys time user = do
+  nonce <- expectedNonce (afterRedirectSessionCookie user)
+  verifyIdentityTokenClaims disco (assignedClientId creds) time keys nonce token
+   & first IdentityTokenValidationFailed

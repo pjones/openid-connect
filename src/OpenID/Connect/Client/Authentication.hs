@@ -14,15 +14,16 @@ Copyright:
 
 License: BSD-2-Clause
 
+Client authentication.
+
 -}
 module OpenID.Connect.Client.Authentication
   ( applyRequestAuthentication
-  , module OpenID.Connect.Authentication
   ) where
 
 --------------------------------------------------------------------------------
 -- Imports:
-import Control.Lens ((&), (?~), (#))
+import Control.Lens ((&), (?~), (.~), (^?))
 import Control.Monad.Except
 import qualified Crypto.JOSE.Compact as JOSE
 import qualified Crypto.JOSE.Error as JOSE
@@ -43,6 +44,7 @@ import qualified Network.HTTP.Client as HTTP
 import OpenID.Connect.Authentication
 
 --------------------------------------------------------------------------------
+-- | Modify a request so that it uses the proper authentication method.
 applyRequestAuthentication
   :: forall m. MonadRandom m
   => Credentials                -- ^ Client credentials.
@@ -102,9 +104,9 @@ applyRequestAuthentication creds methods uri now body =
     makeClaims :: Text -> Int -> ClaimsSet
     makeClaims jti sec
       = JWT.emptyClaimsSet
-      & JWT.claimIss ?~ (JWT.string # assignedClientId creds)
-      & JWT.claimSub ?~ (JWT.string # assignedClientId creds)
-      & JWT.claimAud ?~ JWT.Audience [JWT.string # uri]
+      & JWT.claimIss .~ assignedClientId creds ^? JWT.stringOrUri
+      & JWT.claimSub .~ assignedClientId creds ^? JWT.stringOrUri
+      & JWT.claimAud .~ (JWT.Audience . pure <$> (uri ^? JWT.stringOrUri))
       & JWT.claimJti ?~ jti
       & JWT.claimExp ?~ JWT.NumericDate (addUTCTime (fromIntegral sec) now)
       & JWT.claimIat ?~ JWT.NumericDate now
