@@ -80,10 +80,14 @@ applyRequestAuthentication creds methods uri now body =
         (Text.encodeUtf8 secret) .
       HTTP.urlEncodedBody body
 
+    -- Use the @client_secret@ as a /key/ to sign a JWT.
     hmacWithKey :: Int -> Text -> HTTP.Request -> m (Maybe HTTP.Request)
     hmacWithKey sec keyBytes =
       signWithKey sec (JWK.fromOctets (Text.encodeUtf8 keyBytes))
 
+    -- Use the given key to /sign/ a JWT.  May create an actual
+    -- digital signature or in the case of 'hmacWithKey', create an
+    -- HMAC for the header.
     signWithKey :: Int -> JWK -> HTTP.Request -> m (Maybe HTTP.Request)
     signWithKey sec key req = do
       claims <- makeClaims <$> makeJti <*> pure sec
@@ -101,6 +105,7 @@ applyRequestAuthentication creds methods uri now body =
                      )
                    ]) req
 
+    -- Claims required by OpenID Connect Core §9.
     makeClaims :: Text -> Int -> ClaimsSet
     makeClaims jti sec
       = JWT.emptyClaimsSet
@@ -111,6 +116,8 @@ applyRequestAuthentication creds methods uri now body =
       & JWT.claimExp ?~ JWT.NumericDate (addUTCTime (fromIntegral sec) now)
       & JWT.claimIat ?~ JWT.NumericDate now
 
+    -- JWT ID.  From the standard: A unique identifier for the token,
+    -- which can be used to prevent reuse of the token.
     makeJti :: m Text
     makeJti = (getRandomBytes 64 :: m ByteString)
                 <&> (<> Char8.pack (show now))
