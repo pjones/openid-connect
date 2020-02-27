@@ -1,3 +1,5 @@
+[![sthenauth](https://circleci.com/gh/sthenauth/openid-connect.svg?style=shield)](https://app.circleci.com/github/sthenauth/openid-connect/pipelines)
+
 OpenID Connect 1.0 in Haskell
 =============================
 
