@@ -36,3 +36,13 @@ writing of an OIDC Provider:
   * Key generation (simple wrapper around [jose][])
 
 [jose]: https://hackage.haskell.org/package/jose
+
+Specifications and RFCs
+-----------------------
+
+  * [OpenID Connect Core](http://openid.net/specs/openid-connect-core-1_0.html)
+  * [OpenID Connect Discovery](http://openid.net/specs/openid-connect-discovery-1_0.html)
+  * [The OAuth 2.0 Authorization Framework (RFC6749)](https://tools.ietf.org/html/rfc6749)
+  * [JSON Web Token (RFC7519)](https://tools.ietf.org/html/rfc7519)
+  * [JSON Web Signature (RFC7515)](https://tools.ietf.org/html/rfc7515)
+  * [JSON Web Key (RFC7517)](https://www.rfc-editor.org/rfc/rfc7517.htmlhttps://www.rfc-editor.org/rfc/rfc7517.html)
