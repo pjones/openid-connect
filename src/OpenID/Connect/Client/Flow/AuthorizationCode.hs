@@ -59,6 +59,7 @@ module OpenID.Connect.Client.Flow.AuthorizationCode
 --------------------------------------------------------------------------------
 -- Imports:
 import Control.Category ((>>>))
+import Control.Exception (Exception)
 import Control.Monad.Except
 import qualified Crypto.Hash as Hash
 import qualified Crypto.JOSE.Error as JOSE
@@ -248,7 +249,7 @@ data FlowError
     -- the claims is incorrect) or the digital signature on the token
     -- doesn't match any of the keys in the provided key set.
 
-  deriving Show
+  deriving (Show, Exception)
 
 --------------------------------------------------------------------------------
 -- | Send the end-user to this URI after setting a cookie.

@@ -43,6 +43,7 @@ module OpenID.Connect.Client.Provider
 
 --------------------------------------------------------------------------------
 -- Imports:
+import Control.Exception (Exception)
 import Control.Monad.Except (ExceptT(..), runExceptT)
 import Crypto.JOSE.JWK (JWKSet)
 import Data.Bifunctor (first)
@@ -66,7 +67,7 @@ data DiscoveryError
     -- ^ A provider's URI is invalid.  The URI is provided as 'Text'
     -- for debugging purposes.
 
-  deriving Show
+  deriving (Show, Exception)
 
 --------------------------------------------------------------------------------
 -- | A provider record is made up of their discovery document and keys.

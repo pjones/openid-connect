@@ -23,7 +23,7 @@ module OpenID.Connect.Client.DynamicRegistration
     registerClient
 
     -- * Errors that can occur
-  , FlowError(..)
+  , RegistrationError(..)
 
     -- * Re-exports
   , HTTPS
@@ -33,6 +33,7 @@ module OpenID.Connect.Client.DynamicRegistration
 
 --------------------------------------------------------------------------------
 -- Imports:
+import Control.Exception (Exception)
 import Control.Monad.Except
 import Data.Bifunctor (bimap)
 import Data.Functor ((<&>))
@@ -43,10 +44,10 @@ import OpenID.Connect.Registration
 
 --------------------------------------------------------------------------------
 -- | Errors that can occur during dynamic client registration.
-data FlowError
+data RegistrationError
   = NoSupportForRegistrationError
   | RegistrationFailedError ErrorResponse
-  deriving Show
+  deriving (Show, Exception)
 
 --------------------------------------------------------------------------------
 -- | Register a client with the provider described by the 'Discovery' document.
@@ -55,7 +56,7 @@ registerClient
   => HTTPS m
   -> Discovery
   -> ClientMetadata a
-  -> m (Either FlowError (ClientMetadataResponse a))
+  -> m (Either RegistrationError (ClientMetadataResponse a))
 registerClient https disco meta = runExceptT $ do
   uri <- maybe (throwError NoSupportForRegistrationError) pure
                (registrationEndpoint disco)
