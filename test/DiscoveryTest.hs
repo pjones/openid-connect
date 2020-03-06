@@ -1,3 +1,5 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 {-|
 
 Copyright:
@@ -23,6 +25,7 @@ module DiscoveryTest
 import HttpHelper
 import qualified Network.HTTP.Client.Internal as HTTP
 import Network.URI (parseURI)
+import qualified Network.URI.Static as Network
 import OpenID.Connect.Client.Provider
 import OpenID.Connect.Scope
 import Test.Tasty (TestTree, testGroup)
@@ -49,9 +52,9 @@ testDiscoveryParsing = do
   case res of
     Left e -> fail (show e)
     Right (Discovery{..}, cache) -> do
-      issuer @?= "https://accounts.google.com"
-      authorizationEndpoint @?= "https://accounts.google.com/o/oauth2/v2/auth"
-      jwksUri @?= "https://www.googleapis.com/oauth2/v3/certs"
+      issuer @?= URI [Network.uri|https://accounts.google.com|]
+      authorizationEndpoint @?= URI [Network.uri|https://accounts.google.com/o/oauth2/v2/auth|]
+      jwksUri @?= URI [Network.uri|https://www.googleapis.com/oauth2/v3/certs|]
 
       fmap (`hasScope` "openid") scopesSupported  @?= Just True
       fmap (`hasScope` "email") scopesSupported   @?= Just True

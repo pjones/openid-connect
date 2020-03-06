@@ -28,11 +28,10 @@ module OpenID.Connect.Authentication
 -- Imports:
 import Crypto.JOSE.JWK (JWK)
 import Data.ByteString (ByteString)
-import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import Network.HTTP.Types (QueryItem)
-import Network.URI (URI)
+import qualified Network.URI as Network
 import OpenID.Connect.JSON
 import OpenID.Connect.Scope
 
@@ -51,22 +50,17 @@ data ClientSecret
     --
     -- This is the most common way to authenticate with a provider.
 
-  | AssignedAssertionText Int Text
+  | AssignedAssertionText Text
     -- ^ A @client_secret@ created by the provider and given to the
     -- client.  The client must create a JWT and use the
     -- @client_secret@ to calculate a message authentication code for
     -- the JWT.
-    --
-    -- The 'Int' parameter is the number of seconds until the
-    -- generated JWT expires.
 
-  | AssertionPrivateKey Int JWK
+  | AssertionPrivateKey JWK
     -- ^ A private key that is solely in the client's possession.  The
     -- provider holds the public key portion of the given key.
     --
     -- The client creates and signs a JWT in order to authenticate.
-    -- The 'Int' parameter is the number of seconds until the
-    -- generated JWT expires.
 
 --------------------------------------------------------------------------------
 -- | A @client_id@ assigned by the provider.
@@ -88,7 +82,7 @@ type ClientID = Text
 -- end-user back to your site.
 --
 -- @since 0.1.0.0
-type ClientRedirectURI = URI
+type ClientRedirectURI = Network.URI
 
 --------------------------------------------------------------------------------
 -- | A complete set of credentials used by the client to authenticate
@@ -137,7 +131,7 @@ data AuthenticationRequest = AuthenticationRequest
   , authRequestMaxAge :: Maybe Int
     -- ^ The @max_age@ parameter.
 
-  , authRequestUiLocales :: Maybe (NonEmpty Text)
+  , authRequestUiLocales :: Maybe Words
     -- ^ The @ui_locales@ parameter.
 
   , authRequestIdTokenHint :: Maybe ByteString
@@ -146,7 +140,7 @@ data AuthenticationRequest = AuthenticationRequest
   , authRequestLoginHint :: Maybe Text
     -- ^ The @login_hint@ parameter.
 
-  , authRequestAcrValues :: Maybe (NonEmpty Text)
+  , authRequestAcrValues :: Maybe Words
     -- ^ The @acr_values@ parameter.
 
   , authRequestOtherParams :: [QueryItem]

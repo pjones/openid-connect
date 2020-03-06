@@ -58,6 +58,14 @@ data TokenResponse a = TokenResponse
 
   , idToken :: a
     -- ^ ID Token value associated with the authenticated session.
+
+  , atHash :: Maybe Text
+    -- ^ Some flows include this hash.  Access Token hash value. Its
+    -- value is the base64url encoding of the left-most half of the
+    -- hash of the octets of the ASCII representation of the
+    -- access_token value, where the hash algorithm used is the hash
+    -- algorithm used in the alg Header Parameter of the ID Token's
+    -- JOSE Header.
   }
   deriving stock (Generic, Functor)
 

@@ -37,6 +37,21 @@ writing of an OIDC Provider:
 
 [jose]: https://hackage.haskell.org/package/jose
 
+Certification Status
+--------------------
+
+We plan on fully [certifying][cert] this implementation using the
+following profiles:
+
+  * [ ] Basic Relying Party
+  * [ ] Implicit Relying Party
+  * [ ] Hybrid Relying Party
+  * [ ] Relying Party Using Configuration Information
+  * [ ] Dynamic Relying Party
+  * [ ] Form Post Relying Party
+
+[cert]: https://openid.net/certification/instructions/
+
 Specifications and RFCs
 -----------------------
 

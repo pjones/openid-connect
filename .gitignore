@@ -4,3 +4,7 @@
 /TAGS
 /tmp/
 /.stack-work/
+/example/*.csr
+/example/*.pem
+/example/cookies
+/example/result*

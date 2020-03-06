@@ -25,7 +25,7 @@ module OpenID.Connect.Discovery
 import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
 import GHC.Generics (Generic)
-import Network.URI (URI(..))
+import qualified Network.URI as Network
 import OpenID.Connect.Authentication
 import OpenID.Connect.JSON
 import OpenID.Connect.Scope
@@ -40,7 +40,7 @@ import OpenID.Connect.Scope
 -- <https://openid.net/certification/>
 --
 -- @since 0.1.0.0
-type ProviderDiscoveryURI = URI
+type ProviderDiscoveryURI = Network.URI
 
 --------------------------------------------------------------------------------
 -- | The provider discovery document as specified in
@@ -48,24 +48,24 @@ type ProviderDiscoveryURI = URI
 --
 -- @since 0.1.0.0
 data Discovery = Discovery
-  { issuer :: Text
+  { issuer :: URI
     -- ^ URL using the https scheme with no query or fragment
     -- component that the OP asserts as its Issuer Identifier.
 
-  , authorizationEndpoint :: Text
+  , authorizationEndpoint :: URI
     -- ^ URL of the OP's OAuth 2.0 Authorization Endpoint.
 
-  , tokenEndpoint :: Maybe Text
+  , tokenEndpoint :: Maybe URI
     -- ^ URL of the OP's OAuth 2.0 Token Endpoint.  Not provided when
     -- using the implicit flow.
 
-  , userinfoEndpoint :: Maybe Text
+  , userinfoEndpoint :: Maybe URI
     -- ^ URL of the OP's UserInfo Endpoint.
 
-  , jwksUri :: Text
+  , jwksUri :: URI
     -- ^ URL of the OP's JSON Web Key Set document.
 
-  , registrationEndpoint :: Maybe Text
+  , registrationEndpoint :: Maybe URI
     -- ^ URL of the OP's Dynamic Client Registration Endpoint.
 
   , scopesSupported :: Maybe Scope
@@ -197,14 +197,14 @@ data Discovery = Discovery
     -- REQUIRED when the value is true. If omitted, the default value
     -- is false.
 
-  , opPolicyUri :: Maybe Text
+  , opPolicyUri :: Maybe URI
     -- ^ URL that the OpenID Provider provides to the person
     -- registering the Client to read about the OP's requirements on
     -- how the Relying Party can use the data provided by the OP. The
     -- registration process SHOULD display this URL to the person
     -- registering the Client if it is given.
 
-  , opTosUri :: Maybe Text
+  , opTosUri :: Maybe URI
     -- ^ URL that the OpenID Provider provides to the person
     -- registering the Client to read about OpenID Provider's terms of
     -- service. The registration process SHOULD display this URL to

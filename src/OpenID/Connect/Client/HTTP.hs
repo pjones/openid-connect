@@ -22,6 +22,8 @@ module OpenID.Connect.Client.HTTP
   , uriToText
   , forceHTTPS
   , requestFromURI
+  , addRequestHeader
+  , jsonPostRequest
   , cacheUntil
   , parseResponse
   ) where
@@ -29,19 +31,27 @@ module OpenID.Connect.Client.HTTP
 --------------------------------------------------------------------------------
 -- Imports:
 import Control.Applicative
-import Data.Aeson (FromJSON, eitherDecode)
+import Data.Aeson (ToJSON, FromJSON, eitherDecode)
+import qualified Data.Aeson as Aeson
+import Data.Bifunctor (bimap)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy as LByteString
+import qualified Data.ByteString.Lazy.Char8 as LChar8
+import Data.CaseInsensitive (CI)
 import Data.Char (isDigit)
+import Data.Function ((&))
 import Data.Functor ((<&>))
 import Data.Text (Text)
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
 import Data.Time.Clock (UTCTime, addUTCTime)
 import Data.Time.Format (parseTimeM, defaultTimeLocale)
 import qualified Network.HTTP.Client as HTTP
 import qualified Network.HTTP.Types.Header as HTTP
+import qualified Network.HTTP.Types.Status as HTTP
 import Network.URI (URI(..), parseURI, uriToString)
+import OpenID.Connect.JSON (ErrorResponse(..))
 
 --------------------------------------------------------------------------------
 -- | A function that can make HTTPS requests.
@@ -72,10 +82,25 @@ forceHTTPS uri = uri { uriScheme = "https:" }
 -- | Convert a URI or Text value into a pre-configured request object.
 requestFromURI :: Either Text URI -> Maybe HTTP.Request
 requestFromURI (Left t) = parseURI (Text.unpack t) >>= requestFromURI . Right
-requestFromURI (Right uri) = do
-  request <- HTTP.requestFromURI (forceHTTPS uri)
-  pure (HTTP.setRequestCheckStatus request)
-  -- FIXME, set the accept header!
+requestFromURI (Right uri) =
+  HTTP.requestFromURI (forceHTTPS uri)
+    <&> addRequestHeader ("Accept", "application/json")
+
+--------------------------------------------------------------------------------
+-- | Add a JSON body to a request.
+jsonPostRequest :: ToJSON a => a -> HTTP.Request -> HTTP.Request
+jsonPostRequest json req = addRequestHeader ("Content-Type", "application/json") $
+  req { HTTP.method = "POST"
+      , HTTP.requestBody = HTTP.RequestBodyLBS (Aeson.encode json)
+      }
+
+--------------------------------------------------------------------------------
+-- | Add a header to the request.
+addRequestHeader :: (CI ByteString, ByteString) -> HTTP.Request -> HTTP.Request
+addRequestHeader header req =
+  req { HTTP.requestHeaders =
+          header : filter ((/= fst header) . fst) (HTTP.requestHeaders req)
+      }
 
 --------------------------------------------------------------------------------
 -- | Given a response, calculate how long it can be cached.
@@ -113,7 +138,21 @@ cacheUntil res = maxAge <|> expires
 parseResponse
   :: FromJSON a
   => HTTP.Response LByteString.ByteString
-  -> Either String (a, Maybe UTCTime)
+  -> Either ErrorResponse (a, Maybe UTCTime)
 parseResponse response =
-  eitherDecode (HTTP.responseBody response)
-    <&> (,cacheUntil response)
+  if HTTP.statusIsSuccessful (HTTP.responseStatus response)
+    then eitherDecode (HTTP.responseBody response) &
+         bimap asError (,cacheUntil response)
+    else Left (asError "invalid response from server")
+  where
+    asError :: String -> ErrorResponse
+    asError s = case eitherDecode (HTTP.responseBody response) of
+      Left _  -> ErrorResponse (Text.pack s) (Just bodyError)
+      Right e -> e
+
+    bodyError :: Text
+    bodyError = response
+              & HTTP.responseBody
+              & LChar8.take 1024
+              & LChar8.toStrict
+              & Text.decodeUtf8

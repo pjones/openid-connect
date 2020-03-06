@@ -10,4 +10,5 @@ let
 
 in nix-hs {
   cabal = ./openid-connect.cabal;
+  flags = ["example"];
 }

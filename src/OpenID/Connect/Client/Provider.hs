@@ -35,6 +35,10 @@ module OpenID.Connect.Client.Provider
 
     -- * Discovery document
   , Discovery(..)
+
+    -- * Re-exports:
+  , URI(..)
+  , uriToText
   ) where
 
 --------------------------------------------------------------------------------
@@ -45,16 +49,17 @@ import Data.Bifunctor (first)
 import Data.Functor ((<&>))
 import Data.Text (Text)
 import Data.Time.Clock (UTCTime)
-import Network.URI (URI(..))
+import qualified Network.URI as Network
 import OpenID.Connect.Client.HTTP
 import OpenID.Connect.Discovery
+import OpenID.Connect.JSON
 
 --------------------------------------------------------------------------------
 -- | Errors that may occur during provider discovery.
 --
 -- @since 0.1.0.0
 data DiscoveryError
-  = JsonDecodingError String
+  = DiscoveryFailedError ErrorResponse
     -- ^ Failed to decode JSON from the provider.
 
   | InvalidUriError Text
@@ -93,12 +98,12 @@ discovery
 discovery https uri =
   case requestFromURI (Right (setPath uri)) of
     Nothing  -> pure (Left (InvalidUriError (uriToText uri)))
-    Just req -> https req <&> parseResponse <&> first JsonDecodingError
+    Just req -> https req <&> parseResponse <&> first DiscoveryFailedError
   where
-    setPath :: URI -> URI
-    setPath u@URI{uriPath} =
+    setPath :: Network.URI -> Network.URI
+    setPath u@Network.URI{uriPath} =
       if null uriPath || uriPath == "/"
-        then u {uriPath = "/.well-known/openid-configuration"}
+        then u {Network.uriPath = "/.well-known/openid-configuration"}
         else u
 
 --------------------------------------------------------------------------------
@@ -115,9 +120,9 @@ keysFromDiscovery
   -> Discovery                  -- ^ The provider's discovery document.
   -> f (Either DiscoveryError (JWKSet, Maybe UTCTime))
 keysFromDiscovery https Discovery{jwksUri} =
-  case requestFromURI (Left jwksUri) of
-    Nothing  -> pure (Left (InvalidUriError jwksUri))
-    Just req -> https req <&> parseResponse <&> first JsonDecodingError
+  case requestFromURI (Right (getURI jwksUri)) of
+    Nothing  -> pure (Left (InvalidUriError (uriToText (getURI jwksUri))))
+    Just req -> https req <&> parseResponse <&> first DiscoveryFailedError
 
 --------------------------------------------------------------------------------
 -- | Fetch a provider's discovery document and key set.

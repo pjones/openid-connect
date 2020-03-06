@@ -39,8 +39,8 @@ import Data.Time.Clock (UTCTime, getCurrentTime, addUTCTime)
 import HttpHelper
 import qualified Network.HTTP.Client as HTTP
 import Network.HTTP.Types
-import Network.URI (URI(..), uriToString)
-import qualified Network.URI.Static as URI
+import qualified Network.URI as Network
+import qualified Network.URI.Static as Network
 import OpenID.Connect.Client.Flow.AuthorizationCode
 import OpenID.Connect.Provider.Key
 import OpenID.Connect.TokenResponse
@@ -61,7 +61,7 @@ credentials =
   Credentials
     { assignedClientId = "phiKei4uZeeGhaizaiph"
     , clientSecret = AssignedSecretText "oxei7ohsh0hoo7buoSui"
-    , clientRedirectUri = [URI.uri|https://example.com/redir|]
+    , clientRedirectUri = [Network.uri|https://example.com/redir|]
     }
 
 --------------------------------------------------------------------------------
@@ -69,12 +69,11 @@ authRequest :: AuthenticationRequest
 authRequest = defaultAuthenticationRequest openid credentials
 
 --------------------------------------------------------------------------------
-redirUriAndCookie :: Discovery -> IO (URI, SetCookie)
+redirUriAndCookie :: Discovery -> IO (Network.URI, SetCookie)
 redirUriAndCookie disco =
-  step httpNoOp (Authenticate disco authRequest) >>= \case
-    Success _             -> assertFailure "did not expect Success"
-    Failed _              -> assertFailure "did not expect Failed"
-    RedirectTo uri cookie -> pure (uri, cookie "foo")
+  authenticationRedirect disco authRequest >>= \case
+    Left _                        -> assertFailure "did not expect failure"
+    Right (RedirectTo uri cookie) -> pure (uri, cookie "foo")
 
 --------------------------------------------------------------------------------
 providerTestKeys :: IO (JWK, JWKSet)
@@ -87,10 +86,11 @@ providerTestKeys = do
 testClaims :: UTCTime -> Discovery -> Text -> ClaimsSet
 testClaims now disco nonce
   = JWT.emptyClaimsSet
-  & JWT.claimIss .~ (issuer disco ^? JWT.stringOrUri)
+  & JWT.claimIss ?~ (JWT.uri # getURI (issuer disco))
   & JWT.claimAud ?~ JWT.Audience [JWT.string # assignedClientId credentials]
   & JWT.claimIat ?~ JWT.NumericDate (addUTCTime (-30) now)
   & JWT.claimExp ?~ JWT.NumericDate (addUTCTime 300 now)
+  & JWT.claimSub ?~ (JWT.string # "ABC123")
   & JWT.addClaim "nonce" (Aeson.toJSON nonce)
 
 --------------------------------------------------------------------------------
@@ -99,27 +99,27 @@ testAuthCodeRedir = do
     Just disco <- Aeson.decodeFileStrict "test/data/discovery.txt"
     (uri, cookie) <- redirUriAndCookie disco
 
-    uriPath  uri @?= "/o/oauth2/v2/auth"
-    uriStart uri @?= (authorizationEndpoint disco <> "?")
+    Network.uriPath uri @?= "/o/oauth2/v2/auth"
+    uriStart uri @?= (uriToText (getURI (authorizationEndpoint disco)) <> "?")
     assertBool "cookie value" (cookieBytes cookie > 0)
 
   where
     -- The URI up to and including the ?
-    uriStart :: URI -> Text
-    uriStart u = Text.dropWhileEnd (/= '?') (Text.pack (uriToString id u []))
+    uriStart :: Network.URI -> Text
+    uriStart u = Text.dropWhileEnd (/= '?') (uriToText u)
 
     cookieBytes :: SetCookie -> Int
     cookieBytes = Char8.length . setCookieValue
 
 --------------------------------------------------------------------------------
-extractQueryParam :: URI -> Char8.ByteString -> IO Char8.ByteString
+extractQueryParam :: Network.URI -> Char8.ByteString -> IO Char8.ByteString
 extractQueryParam uri name =
-  case join (lookup name (parseQuery (Char8.pack (uriQuery uri)))) of
+  case join (lookup name (parseQuery (Char8.pack (Network.uriQuery uri)))) of
     Nothing -> assertFailure ("missing query param: " <> show name)
     Just p  -> pure p
 
 --------------------------------------------------------------------------------
-userReturn :: URI -> SetCookie -> IO UserReturnFromRedirect
+userReturn :: Network.URI -> SetCookie -> IO UserReturnFromRedirect
 userReturn uri cookie = do
   stateParam <- extractQueryParam uri "state"
   pure UserReturnFromRedirect
@@ -209,7 +209,7 @@ testTokenExchange = do
       -> ClaimsSet
       -> JWKSet
       -> UserReturnFromRedirect
-      -> IO (Response, HTTP.Request)
+      -> IO (Either FlowError (TokenResponse ClaimsSet), HTTP.Request)
     makeRequest_ time disco key claims keyset browser = do
       claims' <- runExceptT
         (do algo <- JWT.bestJWSAlg key
@@ -225,16 +225,17 @@ testTokenExchange = do
             , refreshToken = Nothing
             , scope = Nothing
             , idToken = Text.decodeUtf8 (LChar8.toStrict (encodeCompact claims'))
+            , atHash = Nothing
             }
 
       let https = fakeHttpsFromByteString (Aeson.encode token) & mkHTTPS
           provider = Provider disco keyset
-      runHTTPS (step https (Finish time provider credentials browser))
+      runHTTPS (authenticationSuccess https time provider credentials browser)
 
     validateRequest :: (a, HTTP.Request) -> IO a
     validateRequest (x, req) = do
       HTTP.method req @?= "POST"
-      uriScheme (HTTP.getUri req) @?= "https:"
+      Network.uriScheme (HTTP.getUri req) @?= "https:"
       assertBool "should be a secure connection" (HTTP.secure req)
       pure x
 
@@ -243,14 +244,12 @@ testTokenExchange = do
       HTTP.method req @?= "NONE" -- See HttpHelper.hs
       pure x
 
-    assertResponseSuccess :: Response -> Assertion
+    assertResponseSuccess :: Either FlowError a -> Assertion
     assertResponseSuccess = \case
-      RedirectTo _ _ -> assertFailure "didn't expect RedirectTo"
-      Failed e       -> assertFailure ("didn't expect Failed: " <> show e)
-      Success _      -> pure ()
+      Left e  -> assertFailure ("didn't expect Failed: " <> show e)
+      Right _ -> pure ()
 
-    assertResponseFailed :: Response -> Assertion
+    assertResponseFailed :: Either FlowError a -> Assertion
     assertResponseFailed = \case
-      RedirectTo _ _ -> assertFailure "didn't expect RedirectTo"
-      Success _      -> assertFailure "didn't expect Success"
-      Failed _       -> pure ()
+      Right _ -> assertFailure "didn't expect Success"
+      Left _  -> pure ()

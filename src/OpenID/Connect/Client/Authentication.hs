@@ -23,7 +23,7 @@ module OpenID.Connect.Client.Authentication
 
 --------------------------------------------------------------------------------
 -- Imports:
-import Control.Lens ((&), (?~), (.~), (^?))
+import Control.Lens ((&), (?~), (.~), (^?), (#))
 import Control.Monad.Except
 import qualified Crypto.JOSE.Compact as JOSE
 import qualified Crypto.JOSE.Error as JOSE
@@ -42,6 +42,7 @@ import qualified Data.Text.Encoding as Text
 import Data.Time.Clock (UTCTime, addUTCTime)
 import qualified Network.HTTP.Client as HTTP
 import OpenID.Connect.Authentication
+import OpenID.Connect.JSON
 
 --------------------------------------------------------------------------------
 -- | Modify a request so that it uses the proper authentication method.
@@ -49,7 +50,7 @@ applyRequestAuthentication
   :: forall m. MonadRandom m
   => Credentials                -- ^ Client credentials.
   -> [ClientAuthentication]     -- ^ Available authentication methods.
-  -> Text                       -- ^ Token Endpoint URI
+  -> URI                        -- ^ Token Endpoint URI
   -> UTCTime                    -- ^ The current time.
   -> [(ByteString, ByteString)] -- ^ Headers to include in the post.
   -> HTTP.Request               -- ^ The request to modify.
@@ -57,19 +58,25 @@ applyRequestAuthentication
 applyRequestAuthentication creds methods uri now body =
   case clientSecret creds of
     AssignedSecretText secret
-      | ClientSecretPost  `elem` methods -> pure . Just . useBody secret
       | ClientSecretBasic `elem` methods -> pure . Just . useBasic secret
+      | ClientSecretPost  `elem` methods -> pure . Just . useBody secret
+      | None              `elem` methods -> pure . Just . pass body
       | otherwise                        -> pure . const Nothing
-    AssignedAssertionText sec key
-      | ClientSecretJwt `elem` methods   -> hmacWithKey sec key
+    AssignedAssertionText key
+      | ClientSecretJwt `elem` methods   -> hmacWithKey key
+      | None            `elem` methods   -> pure . Just . pass body
       | otherwise                        -> pure . const Nothing
-    AssertionPrivateKey sec key
-      | PrivateKeyJwt `elem` methods     -> signWithKey sec key
+    AssertionPrivateKey key
+      | PrivateKeyJwt `elem` methods     -> signWithKey key
+      | None          `elem` methods     -> pure . Just . pass body
       | otherwise                        -> pure . const Nothing
 
   where
+    pass :: [(ByteString, ByteString)] -> HTTP.Request -> HTTP.Request
+    pass = HTTP.urlEncodedBody
+
     useBody :: Text -> HTTP.Request -> HTTP.Request
-    useBody secret = HTTP.urlEncodedBody
+    useBody secret = pass
       (body <> [ ("client_secret", Text.encodeUtf8 secret)
                ])
 
@@ -77,20 +84,19 @@ applyRequestAuthentication creds methods uri now body =
     useBasic secret =
       HTTP.applyBasicAuth
         (Text.encodeUtf8 (assignedClientId creds))
-        (Text.encodeUtf8 secret) .
-      HTTP.urlEncodedBody body
+        (Text.encodeUtf8 secret) . pass body
 
     -- Use the @client_secret@ as a /key/ to sign a JWT.
-    hmacWithKey :: Int -> Text -> HTTP.Request -> m (Maybe HTTP.Request)
-    hmacWithKey sec keyBytes =
-      signWithKey sec (JWK.fromOctets (Text.encodeUtf8 keyBytes))
+    hmacWithKey :: Text -> HTTP.Request -> m (Maybe HTTP.Request)
+    hmacWithKey keyBytes =
+      signWithKey (JWK.fromOctets (Text.encodeUtf8 keyBytes))
 
     -- Use the given key to /sign/ a JWT.  May create an actual
     -- digital signature or in the case of 'hmacWithKey', create an
     -- HMAC for the header.
-    signWithKey :: Int -> JWK -> HTTP.Request -> m (Maybe HTTP.Request)
-    signWithKey sec key req = do
-      claims <- makeClaims <$> makeJti <*> pure sec
+    signWithKey :: JWK -> HTTP.Request -> m (Maybe HTTP.Request)
+    signWithKey key req = do
+      claims <- makeClaims <$> makeJti
       res <- runExceptT $ do
         alg <- JWK.bestJWSAlg key
         JWT.signClaims key (JWT.newJWSHeader ((), alg)) claims
@@ -106,14 +112,14 @@ applyRequestAuthentication creds methods uri now body =
                    ]) req
 
     -- Claims required by OpenID Connect Core §9.
-    makeClaims :: Text -> Int -> ClaimsSet
-    makeClaims jti sec
+    makeClaims :: Text -> ClaimsSet
+    makeClaims jti
       = JWT.emptyClaimsSet
       & JWT.claimIss .~ assignedClientId creds ^? JWT.stringOrUri
       & JWT.claimSub .~ assignedClientId creds ^? JWT.stringOrUri
-      & JWT.claimAud .~ (JWT.Audience . pure <$> (uri ^? JWT.stringOrUri))
+      & JWT.claimAud ?~ JWT.Audience (pure (JWT.uri # getURI uri))
       & JWT.claimJti ?~ jti
-      & JWT.claimExp ?~ JWT.NumericDate (addUTCTime (fromIntegral sec) now)
+      & JWT.claimExp ?~ JWT.NumericDate (addUTCTime 60 now)
       & JWT.claimIat ?~ JWT.NumericDate now
 
     -- JWT ID.  From the standard: A unique identifier for the token,
