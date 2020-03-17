@@ -25,7 +25,6 @@ module HttpHelper
   ) where
 
 --------------------------------------------------------------------------------
-import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.State.Strict
 import qualified Data.ByteString.Lazy.Char8 as LChar8
 import qualified Network.HTTP.Client.Internal as HTTP
@@ -68,7 +67,7 @@ defaultFakeHTTPS' rdata =
 
 --------------------------------------------------------------------------------
 httpNoOp
-  :: MonadIO m
+  :: MonadFail m
   => HTTP.Request
   -> m (HTTP.Response LChar8.ByteString)
 httpNoOp _ = fail "httpNoOp"

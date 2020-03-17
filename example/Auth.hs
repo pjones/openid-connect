@@ -20,7 +20,6 @@ module Auth (app) where
 --------------------------------------------------------------------------------
 -- Imports:
 import Control.Monad.Except
-import Control.Monad.IO.Class (liftIO)
 import Data.ByteString (ByteString)
 import Data.ByteString.Builder (toLazyByteString)
 import qualified Data.ByteString.Char8 as Char8

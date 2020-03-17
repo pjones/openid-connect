@@ -27,8 +27,6 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import qualified Crypto.JOSE.Compact as JOSE
 import qualified Crypto.JOSE.Error as JOSE
-import Crypto.JOSE.JWK (JWKSet)
-import Crypto.JWT (SignedJWT, ClaimsSet, JWTError)
 import Crypto.JWT as JWT
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy.Char8 as LChar8
