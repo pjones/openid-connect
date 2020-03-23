@@ -365,7 +365,7 @@ makeSessionCookie Secrets{valueForHttpOnlyCookie} uri name =
     , Cookie.setCookiePath     = Just (Char8.pack (Network.uriPath uri))
     , Cookie.setCookieHttpOnly = True
     , Cookie.setCookieSecure   = True
-    , Cookie.setCookieSameSite = Just Cookie.sameSiteStrict
+    , Cookie.setCookieSameSite = Just Cookie.sameSiteLax
     }
 
 --------------------------------------------------------------------------------
