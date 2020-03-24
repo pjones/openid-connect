@@ -24,7 +24,13 @@ module OpenID.Connect.Scope
   , profile
   , auth
   , hasScope
+  , scopeFromWords
   , scopeQueryItem
+
+    -- * Re-exports
+  , Words(..)
+  , toWords
+  , fromWords
   ) where
 
 --------------------------------------------------------------------------------
@@ -102,6 +108,13 @@ auth = openid <> email
 -- @since 0.1.0.0
 hasScope :: Scope -> Text -> Bool
 hasScope s t= (t `elem`) . NonEmpty.toList . toWordList . unScope $ s
+
+--------------------------------------------------------------------------------
+-- | Convert a (non-empty) list of words into a 'Scope'.
+--
+-- @since 0.1.0.0
+scopeFromWords :: Words -> Scope
+scopeFromWords = Scope
 
 --------------------------------------------------------------------------------
 -- | Encode a 'Scope' into a query string item.

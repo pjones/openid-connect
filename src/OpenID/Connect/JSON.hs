@@ -76,6 +76,8 @@ instance ( Generic a
 --------------------------------------------------------------------------------
 -- | A provider response that indicates an error as described in OAuth
 -- 2.0 Bearer Token Usage (RFC 6750).
+--
+-- @since 0.1.0.0
 data ErrorResponse = ErrorResponse
   { errorCode        :: Text
   , errorDescription :: Maybe Text
@@ -112,6 +114,8 @@ instance (FromJSON a, FromJSON b) => FromJSON (a :*: b) where
 
 --------------------------------------------------------------------------------
 -- | Space separated list of words.
+--
+-- @since 0.1.0.0
 newtype Words = Words
   { toWordList :: NonEmpty Text
   }
@@ -127,6 +131,8 @@ instance FromJSON Words where
 
 --------------------------------------------------------------------------------
 -- | Encode a list of words into 'Text'.
+--
+-- @since 0.1.0.0
 fromWords :: Words -> Text
 fromWords = toWordList
         >>> NonEmpty.nub
@@ -135,6 +141,8 @@ fromWords = toWordList
 
 --------------------------------------------------------------------------------
 -- | Decode a list of words from 'Text'.
+--
+-- @since 0.1.0.0
 toWords :: MonadPlus m => Text -> m Words
 toWords = Text.words >>> \case
   [] -> mzero
@@ -143,6 +151,8 @@ toWords = Text.words >>> \case
 --------------------------------------------------------------------------------
 -- | A wrapper around the "Network.URI" type that supports 'ToJSON'
 -- and 'FromJSON'.
+--
+-- @since 0.1.0.0
 newtype URI = URI
   { getURI :: Network.URI }
   deriving newtype (Show, Eq)
