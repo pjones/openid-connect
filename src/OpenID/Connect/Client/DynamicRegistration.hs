@@ -51,6 +51,14 @@ data RegistrationError
 
 --------------------------------------------------------------------------------
 -- | Register a client with the provider described by the 'Discovery' document.
+--
+-- Example:
+--
+-- @
+-- let reg = 'defaultRegistration' yourClientRedirURI
+--     metadata = 'clientMetadata' reg 'BasicRegistration'
+-- in registerClient http discoveryDoc metadata
+-- @
 registerClient
   :: (Monad m, ToJSON a, FromJSON a)
   => HTTPS m

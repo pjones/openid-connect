@@ -107,6 +107,10 @@ data Credentials = Credentials
 -- The fields of this record are send to the provider by way of a URI
 -- given to the end-user.
 --
+-- Clients can use the
+-- 'OpenID.Connect.Client.Flow.AuthorizationCode.defaultAuthenticationRequest'
+-- function to easily create a value of this type.
+--
 -- @since 0.1.0.0
 data AuthenticationRequest = AuthenticationRequest
   { authRequestRedirectURI :: ClientRedirectURI

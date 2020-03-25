@@ -50,6 +50,9 @@ import OpenID.Connect.JSON
 -- | Client registration metadata.
 --
 -- OpenID Connect Dynamic Client Registration 1.0 §2.
+--
+-- Use the 'defaultRegistration' function to easily create a value of
+-- this type.
 data Registration = Registration
   { redirectUris :: NonEmpty URI
     -- ^ Array of Redirection URI values used by the Client.
@@ -255,6 +258,17 @@ type ClientMetadata a = Registration :*: a
 -- | Create a complete 'ClientMetadata' record from an existing
 -- 'Registration' value and any additional client metadata parameters
 -- that are needed.
+--
+-- If you don't need to specify additional client metadata parameters
+-- you can use 'BasicRegistration' as the @a@ type.  In that case, the
+-- type signature would be:
+--
+-- @
+-- clientMetadata
+--   :: Registration
+--   -> BasicRegistration
+--   -> ClientMetadata BasicRegistration
+-- @
 clientMetadata :: Registration -> a -> ClientMetadata a
 clientMetadata r a = Join (r, a)
 

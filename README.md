@@ -25,6 +25,7 @@ Significant features:
   * Additional OIDC claim validation (e.g., `nonce`, `azp`, etc.) (§2)
   * Full support for all defined forms of client authentication (§9)
   * Handles session cookie generation and validation (§3.1.2.1, §15.5.2)
+  * Dynamic Client Registration 1.0.
 
 Provider Features
 -----------------
