@@ -63,7 +63,7 @@ common extensions
     FlexibleContexts
     FlexibleInstances
     FunctionalDependencies
-    GeneralisedNewtypeDeriving
+    GeneralizedNewtypeDeriving
     LambdaCase
     MultiParamTypeClasses
     MultiWayIf
