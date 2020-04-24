@@ -1,4 +1,5 @@
 { pkgs ? import <nixpkgs> { }
+, ghc ? "default"
 }:
 
 let
@@ -11,4 +12,5 @@ let
 in nix-hs {
   cabal = ./openid-connect.cabal;
   flags = ["example"];
+  compiler = ghc;
 }
