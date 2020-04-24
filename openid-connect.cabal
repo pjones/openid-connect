@@ -1,4 +1,4 @@
-cabal-version: 3.0
+cabal-version: 2.2
 
 --------------------------------------------------------------------------------
 name:         openid-connect
@@ -12,7 +12,7 @@ copyright:    Copyright (c) 2020 Peter Jones
 homepage:     https://github.com/sthenauth/openid-connect
 bug-reports:  https://github.com/sthenauth/openid-connect/issues
 category:     Network
-tested-with:  GHC == { 8.6.5, 8.8.3 }
+tested-with:  GHC == 8.6.5, GHC == 8.8.3
 
 --------------------------------------------------------------------------------
 description:
