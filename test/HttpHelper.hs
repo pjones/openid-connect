@@ -19,7 +19,6 @@ module HttpHelper
   ( FakeHTTPS(..)
   , defaultFakeHTTPS
   , fakeHttpsFromByteString
-  , httpNoOp
   , mkHTTPS
   , runHTTPS
   ) where
@@ -64,13 +63,6 @@ defaultFakeHTTPS' rdata =
       , (HTTP.hCacheControl, "public, max-age=3600")
       , (HTTP.hContentType,  "application/json")
       ]
-
---------------------------------------------------------------------------------
-httpNoOp
-  :: MonadFail m
-  => HTTP.Request
-  -> m (HTTP.Response LChar8.ByteString)
-httpNoOp _ = fail "httpNoOp"
 
 --------------------------------------------------------------------------------
 mkHTTPS
