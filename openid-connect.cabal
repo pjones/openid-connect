@@ -132,15 +132,16 @@ executable example
   if !flag(example)
     buildable: False
 
-  build-depends: blaze-html           >= 0.9
-               , http-client-tls      >= 0.3
-               , openid-connect
-               , optparse-applicative >= 0.14
-               , servant              >= 0.16
-               , servant-blaze        >= 0.9
-               , servant-server       >= 0.16
-               , warp                 >= 3.2
-               , warp-tls             >= 3.2
+  build-depends:
+    , blaze-html            ^>=0.9
+    , http-client-tls       ^>=0.3
+    , openid-connect
+    , optparse-applicative  >=0.14 && <0.17
+    , servant               >=0.16 && <0.19
+    , servant-blaze         ^>=0.9
+    , servant-server        >=0.16 && <0.19
+    , warp                  >=3.2  && <3.4
+    , warp-tls              >=3.2  && <3.4
 
 --------------------------------------------------------------------------------
 test-suite test
