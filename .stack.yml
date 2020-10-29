@@ -1,4 +1,0 @@
-# Force stack to use the GHC from the existing nix-shell.
-system-ghc: true
-install-ghc: false
-nix: {enable: false}

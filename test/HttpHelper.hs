@@ -72,14 +72,16 @@ mkHTTPS
   -> StateT HTTP.Request m (HTTP.Response LChar8.ByteString)
 mkHTTPS FakeHTTPS{..} request = do
   put request
+  body <- liftIO fakeData
 
-  HTTP.Response
-    <$> pure fakeStatus
-    <*> pure fakeVersion
-    <*> pure fakeHeaders
-    <*> liftIO fakeData
-    <*> pure mempty
-    <*> pure (HTTP.ResponseClose (pure ()))
+  pure $
+    HTTP.Response
+     fakeStatus
+     fakeVersion
+     fakeHeaders
+     body
+     mempty
+     (HTTP.ResponseClose (pure ()))
 
 --------------------------------------------------------------------------------
 runHTTPS
