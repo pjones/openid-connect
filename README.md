@@ -1,4 +1,4 @@
-[![sthenauth](https://circleci.com/gh/sthenauth/openid-connect.svg?style=shield)](https://app.circleci.com/github/sthenauth/openid-connect/pipelines)
+[![tests](https://github.com/sthenauth/openid-connect/actions/workflows/tests.yml/badge.svg)](https://github.com/sthenauth/openid-connect/actions/workflows/tests.yml)
 
 OpenID Connect 1.0 in Haskell
 =============================

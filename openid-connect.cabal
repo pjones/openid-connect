@@ -31,6 +31,11 @@ extra-source-files:
   example/*.sh
 
 --------------------------------------------------------------------------------
+source-repository head
+  type:     git
+  location: https://github.com/sthenauth/openid-connect.git
+
+--------------------------------------------------------------------------------
 flag example
   description: Build the example application
   manual: True
@@ -131,7 +136,7 @@ executable example
 
   build-depends: blaze-html           >= 0.9
                , http-client-tls      >= 0.3
-               , openid-connect       >= 0.1
+               , openid-connect
                , optparse-applicative >= 0.14
                , servant              >= 0.16
                , servant-blaze        >= 0.9
