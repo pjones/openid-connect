@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-|
 
 Copyright:
@@ -82,6 +83,9 @@ mkHTTPS FakeHTTPS{..} request = do
      body
      mempty
      (HTTP.ResponseClose (pure ()))
+#if MIN_VERSION_http_client(0,7,8)
+     request
+#endif
 
 --------------------------------------------------------------------------------
 runHTTPS
