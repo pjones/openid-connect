@@ -1,11 +1,11 @@
 cabal-version:      2.2
 name:               openid-connect
-version:            0.1.0.1
+version:            0.1.1
 license:            BSD-2-Clause
 license-file:       LICENSE
 author:             Peter Jones <pjones@devalot.com>
 maintainer:         Peter Jones <pjones@devalot.com>
-copyright:          Copyright (c) 2020 Peter Jones
+copyright:          Copyright (c) 2020-2021 Peter Jones
 homepage:           https://github.com/sthenauth/openid-connect
 bug-reports:        https://github.com/sthenauth/openid-connect/issues
 category:           Network
@@ -132,15 +132,16 @@ executable example
   if !flag(example)
     buildable: False
 
-  build-depends: blaze-html           >= 0.9
-               , http-client-tls      >= 0.3
-               , openid-connect
-               , optparse-applicative >= 0.14
-               , servant              >= 0.16
-               , servant-blaze        >= 0.9
-               , servant-server       >= 0.16
-               , warp                 >= 3.2
-               , warp-tls             >= 3.2
+  build-depends:
+    , blaze-html            >=0.9
+    , http-client-tls       >=0.3
+    , openid-connect
+    , optparse-applicative  >=0.14
+    , servant               >=0.16
+    , servant-blaze         >=0.9
+    , servant-server        >=0.16
+    , warp                  >=3.2
+    , warp-tls              >=3.2
 
 --------------------------------------------------------------------------------
 test-suite test
