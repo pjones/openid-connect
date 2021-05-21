@@ -8,4 +8,4 @@ Initial release.
 
   * Version 0.1.1 (May 24, 2021)
 
-    - Update dependencies to their latest versions
+    - Update dependencies to their latest versions (thanks to @maksbotan)
