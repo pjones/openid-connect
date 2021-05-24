@@ -6,7 +6,7 @@ Copyright:
   the license terms in the LICENSE file found in the top-level
   directory of this distribution and at:
 
-    https://code.devalot.com/sthenauth/openid-connect
+    https://code.devalot.com/open/openid-connect
 
   No part of this package, including this file, may be copied,
   modified, propagated, or distributed except according to the terms
