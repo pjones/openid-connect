@@ -1,4 +1,4 @@
-[![tests](https://github.com/sthenauth/openid-connect/actions/workflows/tests.yml/badge.svg)](https://github.com/sthenauth/openid-connect/actions/workflows/tests.yml)
+[![tests](https://github.com/pjones/openid-connect/actions/workflows/tests.yml/badge.svg)](https://github.com/pjones/openid-connect/actions/workflows/tests.yml)
 
 OpenID Connect 1.0 in Haskell
 =============================
