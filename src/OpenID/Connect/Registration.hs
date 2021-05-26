@@ -152,7 +152,7 @@ data Registration = Registration
     -- @request_object_encryption_enc@ is included,
     -- @request_object_encryption_alg@ MUST also be provided.
 
-  , tokenEndpointAuthMethod :: ClientAuthentication
+  , tokenEndpointAuthMethod :: TokenEndpointAuthMethod
     -- ^ Requested Client Authentication method for the Token
     -- Endpoint.
 
@@ -228,7 +228,7 @@ defaultRegistration redir =
     , requestObjectSigningAlg      = Nothing
     , requestObjectEncryptionAlg   = Nothing
     , requestObjectEncryptionEnc   = Nothing
-    , tokenEndpointAuthMethod      = ClientSecretBasic
+    , tokenEndpointAuthMethod      = StandardAuthentication ClientSecretBasic
     , tokenEndpointAuthSigningAlg  = Nothing
     , defaultMaxAge                = Nothing
     , requireAuthTime              = Nothing
