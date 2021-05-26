@@ -51,13 +51,13 @@ getProvider opts mgr =
       case optionsForceAuthMode opts of
         ForceSecretPost ->
           d {tokenEndpointAuthMethodsSupported =
-             Just (ClientSecretPost :| [])}
+             Just (StandardAuthentication ClientSecretPost :| [])}
         ForceSecretJWT ->
           d {tokenEndpointAuthMethodsSupported =
-             Just (ClientSecretJwt :| [])}
+             Just (StandardAuthentication ClientSecretJwt :| [])}
         ForcePrivateJWT ->
           d {tokenEndpointAuthMethodsSupported =
-             Just (PrivateKeyJwt :| [])}
+             Just (StandardAuthentication PrivateKeyJwt :| [])}
         NoForcedAuth ->
           d
 
@@ -96,12 +96,13 @@ getCredentials opts mgr provider =
               , R.jwks = JWKSet . pure <$> (key ^. asPublicKey)
               }
 
-    defaultAuthMethod :: ClientAuthentication
-    defaultAuthMethod = case optionsForceAuthMode opts of
-      ForceSecretPost -> ClientSecretPost
-      ForceSecretJWT  -> ClientSecretJwt
-      ForcePrivateJWT -> PrivateKeyJwt
-      NoForcedAuth    -> ClientSecretBasic
+    defaultAuthMethod :: TokenEndpointAuthMethod
+    defaultAuthMethod = StandardAuthentication $
+      case optionsForceAuthMode opts of
+        ForceSecretPost -> ClientSecretPost
+        ForceSecretJWT  -> ClientSecretJwt
+        ForcePrivateJWT -> PrivateKeyJwt
+        NoForcedAuth    -> ClientSecretBasic
 
     toClientSecret :: JWK -> Maybe Text -> ClientSecret
     toClientSecret key = \case

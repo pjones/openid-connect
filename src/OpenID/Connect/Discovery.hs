@@ -135,7 +135,7 @@ data Discovery = Discovery
     -- algorithms are used both when the Request Object is passed by
     -- value and when it is passed by reference.
 
-  , tokenEndpointAuthMethodsSupported :: Maybe (NonEmpty ClientAuthentication)
+  , tokenEndpointAuthMethodsSupported :: Maybe (NonEmpty TokenEndpointAuthMethod)
     -- ^ JSON array containing a list of Client Authentication methods
     -- supported by this Token Endpoint.
 

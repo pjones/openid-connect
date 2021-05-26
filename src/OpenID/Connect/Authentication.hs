@@ -16,7 +16,8 @@ License: BSD-2-Clause
 
 -}
 module OpenID.Connect.Authentication
-  ( ClientAuthentication(..)
+  ( TokenEndpointAuthMethod(..)
+  , ClientAuthentication(..)
   , ClientSecret(..)
   , Credentials(..)
   , ClientID
@@ -27,6 +28,8 @@ module OpenID.Connect.Authentication
 --------------------------------------------------------------------------------
 -- Imports:
 import Crypto.JOSE.JWK (JWK)
+import Control.Applicative ((<|>))
+import Data.Aeson
 import Data.ByteString (ByteString)
 import Data.Text (Text)
 import GHC.Generics (Generic)
@@ -183,3 +186,18 @@ data ClientAuthentication
 
   deriving stock (Generic, Eq, Show)
   deriving (ToJSON, FromJSON) via GenericJSON ClientAuthentication
+
+data TokenEndpointAuthMethod
+  = StandardAuthentication ClientAuthentication
+  | AuthenticationExtension Text
+
+  deriving stock Show
+
+instance ToJSON TokenEndpointAuthMethod where
+  toJSON (StandardAuthentication ca) = toJSON ca
+  toJSON (AuthenticationExtension t) = toJSON t
+
+instance FromJSON TokenEndpointAuthMethod where
+  parseJSON v = (<|>)
+    (StandardAuthentication <$> parseJSON v)
+    (AuthenticationExtension <$> parseJSON v)
