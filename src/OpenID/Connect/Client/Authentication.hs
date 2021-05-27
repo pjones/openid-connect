@@ -61,15 +61,15 @@ applyRequestAuthentication creds methods uri now body =
       | ClientSecretBasic `elem` methods -> pure . Just . useBasic secret
       | ClientSecretPost  `elem` methods -> pure . Just . useBody secret
       | None              `elem` methods -> pure . Just . pass body
-      | otherwise                           -> pure . const Nothing
+      | otherwise                        -> pure . const Nothing
     AssignedAssertionText key
       | ClientSecretJwt `elem` methods   -> hmacWithKey key
       | None            `elem` methods   -> pure . Just . pass body
-      | otherwise                           -> pure . const Nothing
+      | otherwise                        -> pure . const Nothing
     AssertionPrivateKey key
       | PrivateKeyJwt `elem` methods     -> signWithKey key
       | None          `elem` methods     -> pure . Just . pass body
-      | otherwise                           -> pure . const Nothing
+      | otherwise                        -> pure . const Nothing
 
   where
     pass :: [(ByteString, ByteString)] -> HTTP.Request -> HTTP.Request
