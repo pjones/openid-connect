@@ -49,7 +49,7 @@ import OpenID.Connect.JSON
 applyRequestAuthentication
   :: forall m. MonadRandom m
   => Credentials                -- ^ Client credentials.
-  -> [TokenEndpointAuthMethod]  -- ^ Available authentication methods.
+  -> [ClientAuthentication]  -- ^ Available authentication methods.
   -> URI                        -- ^ Token Endpoint URI
   -> UTCTime                    -- ^ The current time.
   -> [(ByteString, ByteString)] -- ^ Headers to include in the post.
@@ -58,23 +58,20 @@ applyRequestAuthentication
 applyRequestAuthentication creds methods uri now body =
   case clientSecret creds of
     AssignedSecretText secret
-      | ClientSecretBasic `elem` stdMethods -> pure . Just . useBasic secret
-      | ClientSecretPost  `elem` stdMethods -> pure . Just . useBody secret
-      | None              `elem` stdMethods -> pure . Just . pass body
+      | ClientSecretBasic `elem` methods -> pure . Just . useBasic secret
+      | ClientSecretPost  `elem` methods -> pure . Just . useBody secret
+      | None              `elem` methods -> pure . Just . pass body
       | otherwise                           -> pure . const Nothing
     AssignedAssertionText key
-      | ClientSecretJwt `elem` stdMethods   -> hmacWithKey key
-      | None            `elem` stdMethods   -> pure . Just . pass body
+      | ClientSecretJwt `elem` methods   -> hmacWithKey key
+      | None            `elem` methods   -> pure . Just . pass body
       | otherwise                           -> pure . const Nothing
     AssertionPrivateKey key
-      | PrivateKeyJwt `elem` stdMethods     -> signWithKey key
-      | None          `elem` stdMethods     -> pure . Just . pass body
+      | PrivateKeyJwt `elem` methods     -> signWithKey key
+      | None          `elem` methods     -> pure . Just . pass body
       | otherwise                           -> pure . const Nothing
 
   where
-    stdMethods :: [ClientAuthentication]
-    stdMethods = [ca | StandardAuthentication ca <- methods]
-
     pass :: [(ByteString, ByteString)] -> HTTP.Request -> HTTP.Request
     pass = HTTP.urlEncodedBody
 

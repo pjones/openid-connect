@@ -399,7 +399,7 @@ exchangeCodeForIdentityToken https now disco creds user = do
       req <- maybe
         (throwError (InvalidProviderTokenEndpointError (uriToText (getURI uri)))) pure
         (requestFromURI (Right (getURI uri)))
-      applyRequestAuthentication creds authMethods
+      applyRequestAuthentication creds stdAuthMethods
         uri now body req >>= \case
           Nothing -> throwError NoAuthenticationMethodsAvailableError
           Just r  -> lift (https r)
@@ -412,9 +412,13 @@ exchangeCodeForIdentityToken https now disco creds user = do
       & bimap InvalidProviderTokenResponseError fst
       >>= (decodeIdentityToken >>> first TokenDecodingError)
 
-    authMethods :: [TokenEndpointAuthMethod]
-    authMethods = maybe [StandardAuthentication ClientSecretPost] NonEmpty.toList
-      (tokenEndpointAuthMethodsSupported disco)
+    stdAuthMethods :: [ClientAuthentication]
+    stdAuthMethods =
+      [ ca | StandardAuthentication ca <- maybe
+        [StandardAuthentication ClientSecretPost]
+        NonEmpty.toList
+        (tokenEndpointAuthMethodsSupported disco)
+      ]
 
     body :: [ (ByteString, ByteString) ]
     body  = [ ("grant_type", "authorization_code")
