@@ -49,7 +49,7 @@ import OpenID.Connect.JSON
 applyRequestAuthentication
   :: forall m. MonadRandom m
   => Credentials                -- ^ Client credentials.
-  -> [ClientAuthentication]  -- ^ Available authentication methods.
+  -> [ClientAuthentication]     -- ^ Available authentication methods.
   -> URI                        -- ^ Token Endpoint URI
   -> UTCTime                    -- ^ The current time.
   -> [(ByteString, ByteString)] -- ^ Headers to include in the post.
