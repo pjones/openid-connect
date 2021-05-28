@@ -191,7 +191,7 @@ data TokenEndpointAuthMethod
   = StandardAuthentication ClientAuthentication
   | AuthenticationExtension Text
 
-  deriving stock Show
+  deriving stock (Eq, Show)
 
 instance ToJSON TokenEndpointAuthMethod where
   toJSON (StandardAuthentication ca) = toJSON ca
