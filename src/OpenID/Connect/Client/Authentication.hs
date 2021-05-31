@@ -48,7 +48,7 @@ import OpenID.Connect.Authentication
 import OpenID.Connect.JSON
 
 --------------------------------------------------------------------------------
--- | Class provoding function to modify a request so that it uses the proper authentication method.
+-- | Class providing function to modify a request so that it uses the proper authentication method.
 class Authenticatable creds method where
   applyRequestAuthentication
     :: forall m. MonadRandom m
