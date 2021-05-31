@@ -74,12 +74,13 @@ testDiscoveryAuthExtParsing = do
   case res of
     Left e -> fail (show e)
     Right (Discovery{..}, _) -> do
-      tokenEndpointAuthMethodsSupported @?=
-        ( Just $ fromList
-          [ StandardAuthentication PrivateKeyJwt
-          , StandardAuthentication ClientSecretBasic
-          , StandardAuthentication ClientSecretPost
-          , AuthenticationExtension "tls_client_auth"
-          , StandardAuthentication ClientSecretJwt
-          ]
-        )
+      tokenEndpointAuthMethodsSupported
+        @?=
+          Just
+            (fromList
+              [ StandardAuthentication PrivateKeyJwt
+              , StandardAuthentication ClientSecretBasic
+              , StandardAuthentication ClientSecretPost
+              , AuthenticationExtension "tls_client_auth"
+              , StandardAuthentication ClientSecretJwt
+              ])
