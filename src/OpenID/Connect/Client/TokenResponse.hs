@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 {-|
 
 Copyright:
@@ -32,7 +34,6 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy.Char8 as LChar8
 import Data.Function ((&))
 import Data.Functor.Identity
-import qualified Data.HashMap.Strict as Map
 import Data.Maybe (isJust)
 import Data.Text (Text)
 import qualified Data.Text.Encoding as Text
@@ -40,6 +41,12 @@ import Data.Time.Clock (UTCTime)
 import OpenID.Connect.Authentication (ClientID)
 import OpenID.Connect.Client.Provider
 import OpenID.Connect.TokenResponse
+
+#if MIN_VERSION_aeson(2, 0, 0)
+import qualified Data.Map.Strict as Map
+#else
+import qualified Data.HashMap.Strict as Map
+#endif
 
 --------------------------------------------------------------------------------
 -- | Decode the compacted identity token into a 'SignedJWT'.
