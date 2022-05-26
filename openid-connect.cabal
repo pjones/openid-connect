@@ -1,15 +1,15 @@
 cabal-version:      2.2
 name:               openid-connect
-version:            0.1.1
+version:            0.1.2
 license:            BSD-2-Clause
 license-file:       LICENSE
 author:             Peter Jones <pjones@devalot.com>
 maintainer:         Peter Jones <pjones@devalot.com>
-copyright:          Copyright (c) 2020-2021 Peter Jones
+copyright:          Copyright (c) 2020-2022 Peter Jones
 homepage:           https://github.com/pjones/openid-connect
 bug-reports:        https://github.com/pjones/openid-connect/issues
 category:           Network
-tested-with:        GHC ==8.6.5 || ==8.8.4 || ==8.10.2
+tested-with:        GHC ==8.10.7 || ==9.0.2
 synopsis:
   An OpenID Connect library that does all the heavy lifting for you
 
@@ -24,7 +24,6 @@ description:
 
 --------------------------------------------------------------------------------
 extra-source-files:
-  README.md
   CHANGES.md
   example/*.sh
 
