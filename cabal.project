@@ -2,3 +2,4 @@ packages: *.cabal
 
 tests: true
 benchmarks: true
+flags: +example
