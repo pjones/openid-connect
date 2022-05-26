@@ -8,4 +8,4 @@
 /example/*.pem
 /example/cookies
 /example/result*
-/.cabal/
+/.cache/
