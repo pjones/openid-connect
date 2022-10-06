@@ -31,7 +31,7 @@ jobs:
         ghc: ["8.10"]
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.1.0
 
       - name: Install Windows Dependencies
         if: matrix.os == 'windows-latest'
