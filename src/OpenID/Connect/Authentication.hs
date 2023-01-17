@@ -26,7 +26,11 @@ module OpenID.Connect.Authentication
 
 --------------------------------------------------------------------------------
 -- Imports:
+import Control.Applicative ((<|>))
 import Crypto.JOSE.JWK (JWK)
+import Data.Aeson (ToJSON(..), FromJSON (..), SumEncoding (..), genericToJSON, genericParseJSON)
+import qualified Data.Aeson as Aeson
+import Data.Aeson.Types (typeMismatch, prependFailure)
 import Data.ByteString (ByteString)
 import Data.Text (Text)
 import GHC.Generics (Generic)
@@ -181,5 +185,24 @@ data ClientAuthentication
     -- does not use the Token Endpoint) or because it is a Public
     -- Client with no Client Secret or other authentication mechanism.
 
+  | AuthExtension Text
+    -- ^ Other unsupported possible ways to autenticate the client
+
   deriving stock (Generic, Eq, Show)
-  deriving (ToJSON, FromJSON) via GenericJSON ClientAuthentication
+
+clientAuthAesonOptions :: Aeson.Options
+clientAuthAesonOptions = Aeson.defaultOptions
+    { Aeson.constructorTagModifier = snakeCase
+    , Aeson.sumEncoding = UntaggedValue
+    }
+  where
+    snakeCase = Aeson.camelTo2 '_' . dropWhile (== '_')
+
+instance ToJSON ClientAuthentication where
+  toJSON (AuthExtension txt) = toJSON txt
+  toJSON a = genericToJSON clientAuthAesonOptions a
+
+instance FromJSON ClientAuthentication where
+  parseJSON v@(Aeson.String _) =
+    genericParseJSON clientAuthAesonOptions v <|> AuthExtension <$> parseJSON v
+  parseJSON v = prependFailure "parsing ClientAuthentication failed, " (typeMismatch "String" v)
