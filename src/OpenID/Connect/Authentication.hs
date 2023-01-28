@@ -199,10 +199,10 @@ clientAuthAesonOptions = Aeson.defaultOptions
     snakeCase = Aeson.camelTo2 '_' . dropWhile (== '_')
 
 instance ToJSON ClientAuthentication where
-  toJSON (AuthExtension txt) = toJSON txt
+  toJSON (AuthExtension txt) = Aeson.String txt
   toJSON a = genericToJSON clientAuthAesonOptions a
 
 instance FromJSON ClientAuthentication where
-  parseJSON v@(Aeson.String _) =
-    genericParseJSON clientAuthAesonOptions v <|> AuthExtension <$> parseJSON v
+  parseJSON v@(Aeson.String txt) =
+    genericParseJSON clientAuthAesonOptions v <|> pure (AuthExtension txt)
   parseJSON v = prependFailure "parsing ClientAuthentication failed, " (typeMismatch "String" v)
