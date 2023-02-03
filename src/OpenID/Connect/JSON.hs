@@ -27,6 +27,7 @@ module OpenID.Connect.JSON
   , URI(..)
   , Aeson.ToJSON
   , Aeson.FromJSON
+  , aesonOptions
   ) where
 
 --------------------------------------------------------------------------------

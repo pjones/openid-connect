@@ -28,15 +28,14 @@ module OpenID.Connect.Authentication
 -- Imports:
 import Control.Applicative ((<|>))
 import Crypto.JOSE.JWK (JWK)
-import Data.Aeson (ToJSON(..), FromJSON (..), SumEncoding (..), genericToJSON, genericParseJSON)
 import qualified Data.Aeson as Aeson
-import Data.Aeson.Types (typeMismatch, prependFailure)
+import qualified Data.Aeson.Types as Aeson
 import Data.ByteString (ByteString)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import Network.HTTP.Types (QueryItem)
 import qualified Network.URI as Network
-import OpenID.Connect.JSON
+import OpenID.Connect.JSON (FromJSON, ToJSON, aesonOptions)
 import OpenID.Connect.Scope
 
 --------------------------------------------------------------------------------
@@ -185,24 +184,21 @@ data ClientAuthentication
     -- does not use the Token Endpoint) or because it is a Public
     -- Client with no Client Secret or other authentication mechanism.
 
-  | AuthExtension Text
+  | UnsupportedAuthentication Text
     -- ^ Other unsupported possible ways to autenticate the client
 
   deriving stock (Generic, Eq, Show)
 
 clientAuthAesonOptions :: Aeson.Options
-clientAuthAesonOptions = Aeson.defaultOptions
-    { Aeson.constructorTagModifier = snakeCase
-    , Aeson.sumEncoding = UntaggedValue
-    }
-  where
-    snakeCase = Aeson.camelTo2 '_' . dropWhile (== '_')
+clientAuthAesonOptions = aesonOptions{ Aeson.sumEncoding = Aeson.UntaggedValue }
 
 instance ToJSON ClientAuthentication where
-  toJSON (AuthExtension txt) = Aeson.String txt
-  toJSON a = genericToJSON clientAuthAesonOptions a
+  toJSON (UnsupportedAuthentication txt) = Aeson.String txt
+  toJSON a = Aeson.genericToJSON clientAuthAesonOptions a
 
 instance FromJSON ClientAuthentication where
   parseJSON v@(Aeson.String txt) =
-    genericParseJSON clientAuthAesonOptions v <|> pure (AuthExtension txt)
-  parseJSON v = prependFailure "parsing ClientAuthentication failed, " (typeMismatch "String" v)
+    Aeson.genericParseJSON clientAuthAesonOptions v
+      <|> pure (UnsupportedAuthentication txt)
+  parseJSON v =
+    Aeson.prependFailure "parsing ClientAuthentication failed, " (Aeson.typeMismatch "String" v)
