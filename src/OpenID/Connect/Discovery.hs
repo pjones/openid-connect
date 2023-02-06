@@ -209,6 +209,12 @@ data Discovery = Discovery
     -- registering the Client to read about OpenID Provider's terms of
     -- service. The registration process SHOULD display this URL to
     -- the person registering the Client if it is given.
+
+  , endSessionEndpoint :: Maybe URI
+    -- ^ URL at the OP to which an RP can perform a redirect to
+    -- request that the End-User be logged out at the OP. This URL MUST
+    -- use the https scheme and MAY contain port, path, and query
+    -- parameter components.
   }
   deriving stock (Generic, Show)
   deriving (ToJSON, FromJSON) via GenericJSON Discovery
