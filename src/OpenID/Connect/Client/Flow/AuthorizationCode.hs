@@ -37,6 +37,7 @@ module OpenID.Connect.Client.Flow.AuthorizationCode
     -- * Flow
     authenticationRedirect
   , authenticationSuccess
+  , authenticationSuccessWithJwt
   , RedirectTo(..)
 
     -- * Authentication settings
@@ -88,7 +89,7 @@ import OpenID.Connect.Client.HTTP
 import OpenID.Connect.Client.Provider
 import OpenID.Connect.JSON
 import OpenID.Connect.Scope
-import OpenID.Connect.TokenResponse (TokenResponse)
+import OpenID.Connect.TokenResponse (TokenResponse (idToken))
 import Web.Cookie (SetCookie)
 import qualified Web.Cookie as Cookie
 
@@ -315,10 +316,25 @@ authenticationSuccess
   -> Credentials
   -> UserReturnFromRedirect
   -> m (Either FlowError (TokenResponse ClaimsSet))
-authenticationSuccess https time (Provider disco keys) creds user = runExceptT $ do
+authenticationSuccess https time provider creds user =
+  fmap (fmap fst) <$> authenticationSuccessWithJwt https time provider creds user
+
+-- | Same as 'authenticationSuccess' but return also the original id_token as SignedJWT.
+--
+-- Some endpoints (e.g. the end_session_endpoint) may require the original
+-- id_token; this functions allows an application to save it for later use.
+authenticationSuccessWithJwt
+  :: MonadRandom m
+  => HTTPS m
+  -> UTCTime
+  -> Provider
+  -> Credentials
+  -> UserReturnFromRedirect
+  -> m (Either FlowError (TokenResponse (ClaimsSet, SignedJWT)))
+authenticationSuccessWithJwt https time (Provider disco keys) creds user = runExceptT $ do
   _ <- ExceptT (pure (verifyPostRedirectRequest user))
   token <- ExceptT (exchangeCodeForIdentityToken https time disco creds user)
-  ExceptT (pure (extractClaimsSetFromTokenResponse disco creds token keys time user))
+  ExceptT (pure (fmap (, idToken token) <$> extractClaimsSetFromTokenResponse disco creds token keys time user))
 
 --------------------------------------------------------------------------------
 -- | Create the provider authorization redirect URI for the end-user.
