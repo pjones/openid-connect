@@ -323,6 +323,8 @@ authenticationSuccess https time provider creds user =
 --
 -- Some endpoints (e.g. the end_session_endpoint) may require the original
 -- id_token; this functions allows an application to save it for later use.
+--
+-- @since 0.2.0
 authenticationSuccessWithJwt
   :: MonadRandom m
   => HTTPS m

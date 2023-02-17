@@ -215,6 +215,8 @@ data Discovery = Discovery
     -- request that the End-User be logged out at the OP. This URL MUST
     -- use the https scheme and MAY contain port, path, and query
     -- parameter components.
+    --
+    -- @since 0.2.0
   }
   deriving stock (Generic, Show)
   deriving (ToJSON, FromJSON) via GenericJSON Discovery

@@ -185,7 +185,9 @@ data ClientAuthentication
     -- Client with no Client Secret or other authentication mechanism.
 
   | UnsupportedAuthentication Text
-    -- ^ Other unsupported possible ways to autenticate the client
+    -- ^ Other unsupported possible ways to autenticate the client.
+    --
+    -- @since 0.2.0
 
   deriving stock (Generic, Eq, Show)
 
