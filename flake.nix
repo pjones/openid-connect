@@ -20,7 +20,8 @@
       supportedCompilers = [
         "ghc8107"
         "ghc902"
-        "ghc922"
+        "ghc925"
+        "ghc944"
       ];
 
       # List of supported systems:

@@ -1,5 +1,13 @@
 # Revision History for `openid-connect`
 
+## Version 0.2.0 (February 17, 2023)
+
+  * Tolerate non-standard client authentication methods in discovery
+    documents via a new constructor (@ondrap)
+
+  * Allow access to the ID token (JWT) so you can log out of a session
+    (`authenticationSuccessWithJwt`) (@ondrap)
+
 ## Version 0.1.0 (March 25, 2020)
 
 Initial release.
