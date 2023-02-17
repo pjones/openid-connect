@@ -24,7 +24,7 @@ module Client.AuthorizationCodeTest
 --------------------------------------------------------------------------------
 -- Imports:
 import Control.Lens ((&), (?~), (#), (.~), (^?))
-import Control.Monad.Except
+import Control.Monad (join)
 import Crypto.JOSE (JWK, JWKSet(..))
 import Crypto.JOSE.Compact
 import Crypto.JWT (ClaimsSet)
@@ -211,7 +211,7 @@ testTokenExchange = do
       -> UserReturnFromRedirect
       -> IO (Either FlowError (TokenResponse ClaimsSet), HTTP.Request)
     makeRequest_ time disco key claims keyset browser = do
-      claims' <- runExceptT
+      claims' <- JWT.runJOSE
         (do algo <- JWT.bestJWSAlg key
             JWT.signClaims key (JWT.newJWSHeader ((), algo)) claims)
         >>= \case

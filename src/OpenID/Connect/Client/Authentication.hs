@@ -24,7 +24,6 @@ module OpenID.Connect.Client.Authentication
 --------------------------------------------------------------------------------
 -- Imports:
 import Control.Lens ((&), (?~), (.~), (^?), (#))
-import Control.Monad.Except
 import qualified Crypto.JOSE.Compact as JOSE
 import qualified Crypto.JOSE.Error as JOSE
 import Crypto.JOSE.JWK (JWK)
@@ -97,7 +96,7 @@ applyRequestAuthentication creds methods uri now body =
     signWithKey :: JWK -> HTTP.Request -> m (Maybe HTTP.Request)
     signWithKey key req = do
       claims <- makeClaims <$> makeJti
-      res <- runExceptT $ do
+      res <- JWT.runJOSE $ do
         alg <- JWK.bestJWSAlg key
         JWT.signClaims key (JWT.newJWSHeader ((), alg)) claims
       case res of

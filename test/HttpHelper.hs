@@ -26,6 +26,8 @@ module HttpHelper
 
 --------------------------------------------------------------------------------
 import Control.Monad.State.Strict
+import Crypto.JWT (MonadRandom(..))
+import GHC.Generics (Generic)
 import qualified Data.ByteString.Lazy.Char8 as LChar8
 import qualified Network.HTTP.Client.Internal as HTTP
 import qualified Network.HTTP.Types as HTTP
@@ -66,12 +68,21 @@ defaultFakeHTTPS' rdata =
       ]
 
 --------------------------------------------------------------------------------
+newtype HttpSt m a = HttpSt
+  { _unHttpSt :: StateT HTTP.Request m a }
+  deriving stock (Generic)
+  deriving newtype (Functor, Applicative, Monad, MonadTrans)
+
+instance MonadRandom m => MonadRandom (HttpSt m) where
+  getRandomBytes = lift . getRandomBytes
+
+--------------------------------------------------------------------------------
 mkHTTPS
   :: MonadIO m
   => FakeHTTPS
   -> HTTP.Request
-  -> StateT HTTP.Request m (HTTP.Response LChar8.ByteString)
-mkHTTPS FakeHTTPS{..} request = do
+  -> HttpSt m (HTTP.Response LChar8.ByteString)
+mkHTTPS FakeHTTPS{..} request = HttpSt $ do
   put request
   body <- liftIO fakeData
 
@@ -89,6 +100,6 @@ mkHTTPS FakeHTTPS{..} request = do
 
 --------------------------------------------------------------------------------
 runHTTPS
-  :: StateT HTTP.Request m a
+  :: HttpSt m a
   -> m (a, HTTP.Request)
-runHTTPS = (`runStateT` (HTTP.defaultRequest { HTTP.method = "NONE" }))
+runHTTPS (HttpSt s) = runStateT s (HTTP.defaultRequest { HTTP.method = "NONE" })
