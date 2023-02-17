@@ -14,7 +14,9 @@
       packageName = "openid-connect";
 
       # Haskell package overrides:
-      packageOverrides = haskell: { };
+      packageOverrides = haskell: {
+        jose = haskell.jose_0_10;
+      };
 
       # List of supported compilers:
       supportedCompilers = [
@@ -53,6 +55,23 @@
           packageName
           (haskellSourceFilter ./.)
           (packageOverrides haskell);
+
+      # Development environment:
+      shell = pkgs: haskell:
+        haskell.shellFor {
+          NIX_PATH = "nixpkgs=${pkgs.path}";
+
+          packages = _: [ self.packages.${pkgs.system}.${packageName} ];
+          withHoogle = true;
+          buildInputs = [
+            haskell.cabal-fmt
+            haskell.cabal-install
+            haskell.haskell-language-server
+            haskell.hlint
+            haskell.ormolu
+            inputs.haskellrc.packages.${pkgs.system}.default
+          ];
+        };
     in
     {
       packages = forAllSystems (system:
@@ -70,21 +89,14 @@
           })
           supportedCompilers));
 
-      devShells = forAllSystems (system: {
-        default = nixpkgsFor.${system}.haskellPackages.shellFor {
-          NIX_PATH = "nixpkgs=${nixpkgsFor.${system}.path}";
-
-          packages = _: [ self.packages.${system}.${packageName} ];
-          withHoogle = true;
-          buildInputs = with nixpkgsFor.${system}; [
-            haskellPackages.cabal-fmt
-            haskellPackages.cabal-install
-            haskellPackages.haskell-language-server
-            haskellPackages.hlint
-            haskellPackages.ormolu
-            inputs.haskellrc.packages.${system}.default
-          ];
-        };
-      });
+      devShells = forAllSystems (system:
+        let pkgs = nixpkgsFor.${system}; in {
+          default = shell pkgs pkgs.haskellPackages;
+        } // builtins.listToAttrs (map
+          (compiler: {
+            name = "shell-${compiler}";
+            value = shell pkgs pkgs.haskell.packages.${compiler};
+          })
+          supportedCompilers));
     };
 }

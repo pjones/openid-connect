@@ -2,6 +2,14 @@
 
 ## Version 0.2.0 (February 17, 2023)
 
+  * Due to breaking changes in the `jose` package:
+
+    - Versions before 0.10 are no longer supported
+
+    - Orphan instances of `MonadRandom` were removed from `jose` so
+      you may need to create your own `Monad` that implements
+      `MonadRandom`
+
   * Tolerate non-standard client authentication methods in discovery
     documents via a new constructor (@ondrap)
 

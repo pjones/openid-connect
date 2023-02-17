@@ -417,10 +417,9 @@ exchangeCodeForIdentityToken https now disco creds user = do
       req <- maybe
         (throwError (InvalidProviderTokenEndpointError (uriToText (getURI uri)))) pure
         (requestFromURI (Right (getURI uri)))
-      applyRequestAuthentication creds authMethods
-        uri now body req >>= \case
-          Nothing -> throwError NoAuthenticationMethodsAvailableError
-          Just r  -> lift (https r)
+      lift (applyRequestAuthentication creds authMethods uri now body req) >>= \case
+        Nothing -> throwError NoAuthenticationMethodsAvailableError
+        Just r  -> lift (https r)
 
     processResponse
       :: HTTP.Response LByteString.ByteString
