@@ -127,6 +127,7 @@ executable example
     Auth
     Discover
     Options
+    Site
     Util
 
   if !flag(example)

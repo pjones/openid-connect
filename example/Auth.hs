@@ -31,9 +31,11 @@ import Data.Time.Clock (getCurrentTime)
 import Network.HTTP.Client (Manager)
 import Network.URI (uriToString)
 import OpenID.Connect.Client.Flow.AuthorizationCode
+import OpenID.Connect.TokenResponse (accessToken)
 import Servant.API
 import Servant.HTML.Blaze
 import Servant.Server
+import qualified Site
 import Text.Blaze.Html
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
@@ -49,9 +51,9 @@ type Login = "login" :> Get '[HTML] Html
 
 --------------------------------------------------------------------------------
 type Success = "return"
-  :> QueryParam "code"  Text
-  :> QueryParam "state" Text
-  :> Header "cookie" SessionCookie
+  :> QueryParam' '[Required] "code"  Text
+  :> QueryParam' '[Required] "state" Text
+  :> Header' '[Required] "cookie" SessionCookie
   :> Get '[HTML] Html
 
 --------------------------------------------------------------------------------
@@ -64,6 +66,8 @@ type Failed = "return"
 --------------------------------------------------------------------------------
 -- | Complete API.
 type API = Index :<|> Login :<|> Success :<|> Failed
+-- | An example of how to use JWT Bearer Tokens.
+  :<|> Site.API
 
 --------------------------------------------------------------------------------
 -- | A type for getting the session cookie out of the request.
@@ -90,6 +94,7 @@ app mgr provider creds = serve api (handlers mgr provider creds)
 handlers :: Manager -> Provider -> Credentials -> Server API
 handlers mgr provider creds =
     index :<|> login :<|> success :<|> failed
+    :<|> Site.handlers mgr provider
   where
     ----------------------------------------------------------------------------
     -- Return the login HTML.
@@ -118,7 +123,7 @@ handlers mgr provider creds =
     ----------------------------------------------------------------------------
     -- User returned from provider with a successful authentication.
     success :: Server Success
-    success (Just code) (Just state) (Just cookie) = do
+    success code state cookie = do
       let browser = UserReturnFromRedirect
             { afterRedirectCodeParam     = Text.encodeUtf8 code
             , afterRedirectStateParam    = Text.encodeUtf8 state
@@ -129,13 +134,10 @@ handlers mgr provider creds =
       r <- liftIO (authenticationSuccess (https mgr) now provider creds browser)
       case r of
         Left e -> throwError (err403 { errBody = LChar8.pack (show e) })
-        Right _token -> pure . H.docTypeHtml $ do
+        Right token -> pure . H.docTypeHtml $ do
           H.title "Success!"
           H.h1 "Successful Authentication"
-
-    ----------------------------------------------------------------------------
-    -- Should have been a success, but one or more params are missing.
-    success _ _ _ = failed (Just "missing params") Nothing Nothing
+          H.p $ H.text $ "Your access token: " <> accessToken token
 
     ----------------------------------------------------------------------------
     -- User returned from provider with an authentication failure.
