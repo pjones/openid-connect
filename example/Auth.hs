@@ -20,13 +20,12 @@ module Auth (app) where
 --------------------------------------------------------------------------------
 -- Imports:
 import Control.Monad.Except
-import Crypto.JWT hiding (uri)
 import Data.ByteString (ByteString)
 import Data.ByteString.Builder (toLazyByteString)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy.Char8 as LChar8
 import Data.Proxy
-import Data.Text as Text (Text, pack, splitAt, toLower)
+import Data.Text (Text)
 import Data.Text.Encoding as Text
 import Data.Time.Clock (getCurrentTime)
 import Network.HTTP.Client (Manager)
@@ -36,6 +35,7 @@ import OpenID.Connect.TokenResponse (accessToken)
 import Servant.API
 import Servant.HTML.Blaze
 import Servant.Server
+import qualified Site
 import Text.Blaze.Html
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
@@ -63,14 +63,11 @@ type Failed = "return"
   :> Header "cookie" SessionCookie
   :> Get '[HTML] Html
 
--------------------------------------------------------------------------------
-type Protected = "protected"
-  :> Header' '[Required] "Authorization" Text
-  :> Get '[HTML] Html
-
 --------------------------------------------------------------------------------
 -- | Complete API.
-type API = Index :<|> Login :<|> Success :<|> Failed :<|> Protected
+type API = Index :<|> Login :<|> Success :<|> Failed
+-- | An example of how to use JWT Bearer Tokens.
+  :<|> Site.API
 
 --------------------------------------------------------------------------------
 -- | A type for getting the session cookie out of the request.
@@ -96,7 +93,8 @@ app mgr provider creds = serve api (handlers mgr provider creds)
 --------------------------------------------------------------------------------
 handlers :: Manager -> Provider -> Credentials -> Server API
 handlers mgr provider creds =
-    index :<|> login :<|> success :<|> failed :<|> protected
+    index :<|> login :<|> success :<|> failed
+    :<|> Site.handlers mgr provider
   where
     ----------------------------------------------------------------------------
     -- Return the login HTML.
@@ -147,21 +145,3 @@ handlers mgr provider creds =
     failed err _ _ = throwError $
       err400 { errBody = maybe "WTF?" (LChar8.fromStrict . Text.encodeUtf8) err
              }
-
-    ----------------------------------------------------------------------------
-    -- User tries to access content protected by authentication.
-    protected :: Server Protected
-    protected bearer = do
-      let (initial, token) = Text.splitAt 7 bearer
-          validator = defaultJWTValidationSettings (== "account")
-      when (Text.toLower initial /= "bearer ") $ throwError err400
-      now <- liftIO getCurrentTime
-      validated :: Either JWTError a <- runExceptT $
-        decodeCompact (LChar8.fromStrict (Text.encodeUtf8 token)) >>=
-        verifyClaimsAt validator (providerKeys provider) now
-      case validated of
-        Left e -> throwError (err403 { errBody = LChar8.pack (show e) })
-        Right claims -> pure . H.docTypeHtml $ do
-          H.title "Accessing protected resource"
-          H.h1 "Successful authentication with Bearer token"
-          H.p $ H.text $ "Your claims: " <> Text.pack (show claims)
