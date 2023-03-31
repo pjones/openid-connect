@@ -22,7 +22,7 @@ module AuthSinglePageApp (app, initialServerState) where
 --------------------------------------------------------------------------------
 -- Imports:
 import Control.Monad.Except
-import Data.ByteString (ByteString, toStrict)
+import Data.ByteString (ByteString)
 import Data.ByteString.Builder (toLazyByteString)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy.Char8 as LChar8
@@ -147,12 +147,12 @@ api = Proxy
 
 --------------------------------------------------------------------------------
 app :: MVar ServerState -> Manager -> Provider -> Credentials -> Application
-app mvar_serverstate mgr provider creds =
-  serve api (handlers mvar_serverstate mgr provider creds)
+app mvarServerState mgr provider creds =
+  serve api (handlers mvarServerState mgr provider creds)
 
 --------------------------------------------------------------------------------
 handlers :: MVar ServerState -> Manager -> Provider -> Credentials -> Server API
-handlers mvar_serverstate mgr provider creds =
+handlers mvarServerState mgr provider creds =
     index :<|> login :<|> success :<|> failed :<|> waitForLogin :<|> static
   where
     ----------------------------------------------------------------------------
@@ -171,10 +171,10 @@ handlers mvar_serverstate mgr provider creds =
     login = do
       -- If available, request "profile" scope so that we can show user's name
       -- on the page.
-      let has_profile = case provider & providerDiscovery & scopesSupported of {
+      let hasProfile = case provider & providerDiscovery & scopesSupported of {
         Nothing -> False;
         Just scope -> hasScope scope "profile" }
-      let scope = if has_profile then openid <> profile else openid
+      let scope = if hasProfile then openid <> profile else openid
       let req = defaultAuthenticationRequest scope creds
       r <- liftIO (authenticationRedirect (providerDiscovery provider) req)
       case r of
@@ -207,7 +207,7 @@ handlers mvar_serverstate mgr provider creds =
           --   cookie.
           -- * Send exit signal to close the connection.
           let socketID = decodeUtf8 $ getSocketIDCookie socketIDCookie
-          serverstate <- liftIO $ readMVar mvar_serverstate
+          serverstate <- liftIO $ readMVar mvarServerState
           liftIO $ case Map.lookup socketID serverstate of
             Nothing -> TextIO.putStrLn $
               "No connection for socketID " `append` socketID
@@ -215,7 +215,7 @@ handlers mvar_serverstate mgr provider creds =
               WS.sendTextData conn $ afterLoginMessage _token
               putMVar exitSignal ()
               -- Remove this connection from server state.
-              modifyMVar_ mvar_serverstate (return . Map.delete socketID)
+              modifyMVar_ mvarServerState (return . Map.delete socketID)
 
           pure . H.docTypeHtml $ do
             H.title "Success!"
@@ -224,14 +224,15 @@ handlers mvar_serverstate mgr provider creds =
               "setTimeout(function() {window.close();}, 1000);"
       where
         afterLoginMessage :: TokenResponse ClaimsSet -> Text
-        afterLoginMessage tr = the_dict & Aeson.encode & toStrict & decodeUtf8
+        afterLoginMessage tr =
+            theDict & Aeson.encode & LChar8.toStrict & decodeUtf8
           where
-            access_tokens = Aeson.toJSON $
+            accessTokens = Aeson.toJSON $
               (const Nothing <$> tr :: TokenResponse (Maybe Text))
-            id_token = Aeson.toJSON $ idToken tr
-            the_dict = Map.fromList [
-              ("access_tokens", access_tokens),
-              ("id_token", id_token)] :: Map.Map Text Aeson.Value
+            idToken_ = Aeson.toJSON $ idToken tr
+            theDict = Map.fromList [
+              ("access_tokens", accessTokens),
+              ("id_token", idToken_)] :: Map.Map Text Aeson.Value
 
     ----------------------------------------------------------------------------
     -- Should have been a success, but one or more params are missing.
@@ -249,7 +250,7 @@ handlers mvar_serverstate mgr provider creds =
     waitForLogin = streamData
       where
         streamData :: MonadIO m => WS.Connection -> m ()
-        streamData conn = do
+        streamData conn = liftIO $ do
           -- * Generate and send socket ID to client (to be stored in a cookie).
           -- * Spin off a ping thread that keeps the connection alive.
           -- * Then block until we receive the exit signal from another thread.
@@ -257,19 +258,20 @@ handlers mvar_serverstate mgr provider creds =
           -- The connection is automatically closed once this IO action
           -- finishes, which is why a signal must be used to keep it from
           -- finishing prematurely.
-          socketID <- liftIO $ decodeUtf8 . convertToBase Base64URLUnpadded <$>
+          socketID <- decodeUtf8 . convertToBase Base64URLUnpadded <$>
             (getRandomBytes 32 :: IO ByteString)
-          exitSignal <- liftIO (newEmptyMVar :: IO (MVar ()))
-          liftIO $ modifyMVar_ mvar_serverstate $ \ss ->
+          exitSignal <- newEmptyMVar :: IO (MVar ())
+          modifyMVar_ mvarServerState $ \ss ->
             return $ Map.insert socketID (conn, exitSignal) ss
-          liftIO $ WS.sendTextData conn (socketIDMessage socketID)
-          liftIO $ WSC.withPingThread conn 30 (return ()) $ do
+          WS.sendTextData conn (socketIDMessage socketID)
+          WSC.withPingThread conn 30 (return ()) $ do
             takeMVar exitSignal
 
         socketIDMessage :: Text -> Text
-        socketIDMessage socketID = the_dict & Aeson.encode & toStrict & decodeUtf8
+        socketIDMessage socketID =
+            theDict & Aeson.encode & LChar8.toStrict & decodeUtf8
           where
-            the_dict = Map.fromList [("socketID", socketID)] :: Map.Map Text Text
+            theDict = Map.fromList [("socketID", socketID)] :: Map.Map Text Text
 
     static :: Server Static
     static = serveDirectoryWebApp "static"

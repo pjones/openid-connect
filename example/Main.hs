@@ -46,8 +46,8 @@ main = do
   app <- liftIO $ case optionsSinglePageApp opts of
     False -> return $ Auth.app mgr provider creds
     True -> do
-      mvar_serverstate <- newMVar AuthSinglePageApp.initialServerState
-      return $ AuthSinglePageApp.app mvar_serverstate mgr provider creds
+      mvarServerState <- newMVar AuthSinglePageApp.initialServerState
+      return $ AuthSinglePageApp.app mvarServerState mgr provider creds
 
   putStrLn "Starting web server"
   Warp.runTLS tls settings app
