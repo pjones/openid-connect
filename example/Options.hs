@@ -62,6 +62,7 @@ data Options = Options
   , optionsProviderUri     :: URI
   , optionsClientUri       :: URI
   , optionsClientDetails   :: ClientDetails
+  , optionsSinglePageApp   :: Bool
   }
 
 --------------------------------------------------------------------------------
@@ -174,6 +175,12 @@ options =
           ])
 
     <*> clientDetails
+
+    <*> O.switch (mconcat
+          [ O.long "single-page-app"
+          , O.help "Run the single-page app version of the example"
+          ])
+
 
 --------------------------------------------------------------------------------
 -- | Parse the command line.
