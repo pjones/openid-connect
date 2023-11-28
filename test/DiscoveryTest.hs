@@ -22,10 +22,12 @@ module DiscoveryTest
   ) where
 
 --------------------------------------------------------------------------------
+import Data.List.NonEmpty (fromList)
 import HttpHelper
 import qualified Network.HTTP.Client.Internal as HTTP
 import Network.URI (parseURI)
 import qualified Network.URI.Static as Network
+import OpenID.Connect.Authentication
 import OpenID.Connect.Client.Provider
 import OpenID.Connect.Scope
 import Test.Tasty (TestTree, testGroup)
@@ -35,6 +37,7 @@ import Test.Tasty.HUnit
 test :: TestTree
 test = testGroup "Discovery"
   [ testCase "discovery" testDiscoveryParsing
+  , testCase "discovery auth method extensions" testDiscoveryAuthExtParsing
   ]
 
 --------------------------------------------------------------------------------
@@ -60,3 +63,24 @@ testDiscoveryParsing = do
       fmap (`hasScope` "email") scopesSupported   @?= Just True
       fmap (`hasScope` "profile") scopesSupported @?= Just True
       fmap show cache                             @?= Just "2020-02-20 20:40:21 UTC"
+
+testDiscoveryAuthExtParsing :: Assertion
+testDiscoveryAuthExtParsing = do
+  let fake = defaultFakeHTTPS "test/data/discovery-extensions.json"
+      https = mkHTTPS fake
+  url <- maybe (fail "WTF?") pure (parseURI "https://oidc.example")
+  (res, _) <- runHTTPS (discovery https url)
+
+  case res of
+    Left e -> fail (show e)
+    Right (Discovery{..}, _) -> do
+      tokenEndpointAuthMethodsSupported
+        @?=
+          Just
+            (fromList
+              [ PrivateKeyJwt
+              , ClientSecretBasic
+              , ClientSecretPost
+              , UnsupportedAuthentication "tls_client_auth"
+              , ClientSecretJwt
+              ])
