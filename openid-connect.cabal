@@ -85,10 +85,10 @@ common dependencies
     , case-insensitive      ^>=1.2
     , containers            ^>=0.6
     , cookie                ^>=0.4
-    , cryptonite            >=0.25  && <1.0
+    , crypton               >=0.25  && <1.0
     , http-client           >=0.6   && <0.8
     , http-types            ^>=0.12
-    , jose                  >=0.10  && <0.11
+    , jose                  >=0.10  && <0.12
     , lens                  >=4.0   && <5.3
     , memory                >=0.14  && <1.0
     , mtl                   >=2.2   && <2.4
