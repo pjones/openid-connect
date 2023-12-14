@@ -61,8 +61,9 @@ applyRequestAuthentication creds methods uri now body =
       | ClientSecretPost  `elem` methods -> pure . Just . useBody secret
       | None              `elem` methods -> pure . Just . pass body
       | otherwise                        -> pure . const Nothing
-    AssignedAssertionText key
-      | ClientSecretJwt `elem` methods   -> hmacWithKey key
+    s@(AssignedAssertionText _)
+      | ClientSecretJwt `elem` methods
+      , Just key <- clientSecretAsJWK s  -> signWithKey key
       | None            `elem` methods   -> pure . Just . pass body
       | otherwise                        -> pure . const Nothing
     AssertionPrivateKey key
@@ -84,11 +85,6 @@ applyRequestAuthentication creds methods uri now body =
       HTTP.applyBasicAuth
         (Text.encodeUtf8 (assignedClientId creds))
         (Text.encodeUtf8 secret) . pass body
-
-    -- Use the @client_secret@ as a /key/ to sign a JWT.
-    hmacWithKey :: Text -> HTTP.Request -> m (Maybe HTTP.Request)
-    hmacWithKey keyBytes =
-      signWithKey (JWK.fromOctets (Text.encodeUtf8 keyBytes))
 
     -- Use the given key to /sign/ a JWT.  May create an actual
     -- digital signature or in the case of 'hmacWithKey', create an
