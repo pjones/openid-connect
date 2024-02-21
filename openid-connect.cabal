@@ -125,6 +125,7 @@ executable example
   main-is:        Main.hs
   other-modules:
     Auth
+    AuthSinglePageApp
     Discover
     Options
     Util
@@ -142,6 +143,8 @@ executable example
     , servant-server        >=0.16 && <0.20
     , warp                  >=3.2  && <3.4
     , warp-tls              >=3.2  && <3.4
+    , servant-websockets    ^>=2.0.0
+    , websockets            ^>=0.12.7.3
 
 --------------------------------------------------------------------------------
 test-suite test

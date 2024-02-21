@@ -19,7 +19,10 @@ module Main (main) where
 
 --------------------------------------------------------------------------------
 -- Imports:
-import Auth
+import qualified Auth
+import qualified AuthSinglePageApp
+import Control.Monad.Except (liftIO)
+import Control.Concurrent (newMVar)
 import Data.Function ((&))
 import Discover
 import Network.HTTP.Client.TLS (newTlsManager)
@@ -40,5 +43,11 @@ main = do
   provider <- getProvider opts mgr
   creds <- getCredentials opts mgr provider
 
+  app <- liftIO $ case optionsSinglePageApp opts of
+    False -> return $ Auth.app mgr provider creds
+    True -> do
+      mvarServerState <- newMVar AuthSinglePageApp.initialServerState
+      return $ AuthSinglePageApp.app mvarServerState mgr provider creds
+
   putStrLn "Starting web server"
-  Warp.runTLS tls settings (app mgr provider creds)
+  Warp.runTLS tls settings app
