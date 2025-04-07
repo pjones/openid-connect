@@ -97,6 +97,9 @@ mkHTTPS FakeHTTPS{..} request = HttpSt $ do
 #if MIN_VERSION_http_client(0,7,8)
      request
 #endif
+#if MIN_VERSION_http_client(0,7,16)
+     mempty -- 'responseEarlyHints'
+#endif
 
 --------------------------------------------------------------------------------
 runHTTPS
