@@ -61,6 +61,7 @@ module OpenID.Connect.Client.Flow.AuthorizationCode
 -- Imports:
 import Control.Category ((>>>))
 import Control.Exception (Exception)
+import Control.Monad.Trans (lift)
 import Control.Monad.Except
 import qualified Crypto.Hash as Hash
 import qualified Crypto.JOSE.Error as JOSE
