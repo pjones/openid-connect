@@ -36,6 +36,7 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy.Char8 as LChar8
 import Data.Functor ((<&>))
+import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
 import qualified Data.Text.Encoding as Text
 import Data.Time.Clock (UTCTime, addUTCTime)
@@ -49,12 +50,13 @@ applyRequestAuthentication
   :: forall m. MonadRandom m
   => Credentials                -- ^ Client credentials.
   -> [ClientAuthentication]     -- ^ Available authentication methods.
+  -> NonEmpty JWT.Alg           -- ^ Available JWS signing algorithms.
   -> URI                        -- ^ Token Endpoint URI
   -> UTCTime                    -- ^ The current time.
   -> [(ByteString, ByteString)] -- ^ Headers to include in the post.
   -> HTTP.Request               -- ^ The request to modify.
   -> m (Maybe HTTP.Request)     -- ^ The final request.
-applyRequestAuthentication creds methods uri now body =
+applyRequestAuthentication creds methods algs uri now body =
   case clientSecret creds of
     AssignedSecretText secret
       | ClientSecretBasic `elem` methods -> pure . Just . useBasic secret
@@ -97,7 +99,7 @@ applyRequestAuthentication creds methods uri now body =
     signWithKey key req = do
       claims <- makeClaims <$> makeJti
       res <- JWT.runJOSE $ do
-        alg <- JWK.bestJWSAlg key
+        alg <- JWK.negotiateJWSAlg key $ Just algs
         JWT.signClaims key (JWT.newJWSHeader ((), alg)) claims
       case res of
         Left (_ :: JOSE.Error) -> pure Nothing

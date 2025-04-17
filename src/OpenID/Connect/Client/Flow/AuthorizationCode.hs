@@ -65,6 +65,7 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Except
 import qualified Crypto.Hash as Hash
 import qualified Crypto.JOSE.Error as JOSE
+import Crypto.JOSE.JWA.JWS (Alg)
 import Crypto.JOSE.JWK (JWKSet)
 import Crypto.JWT (SignedJWT, ClaimsSet, JWTError)
 import Crypto.Random (MonadRandom(..))
@@ -418,7 +419,7 @@ exchangeCodeForIdentityToken https now disco creds user = do
       req <- maybe
         (throwError (InvalidProviderTokenEndpointError (uriToText (getURI uri)))) pure
         (requestFromURI (Right (getURI uri)))
-      lift (applyRequestAuthentication creds authMethods uri now body req) >>= \case
+      lift (applyRequestAuthentication creds authMethods signingAlgs uri now body req) >>= \case
         Nothing -> throwError NoAuthenticationMethodsAvailableError
         Just r  -> lift (https r)
 
@@ -433,6 +434,9 @@ exchangeCodeForIdentityToken https now disco creds user = do
     authMethods :: [ClientAuthentication]
     authMethods = maybe [ClientSecretPost] NonEmpty.toList
       (tokenEndpointAuthMethodsSupported disco)
+
+    signingAlgs :: NonEmpty.NonEmpty Alg
+    signingAlgs = idTokenSigningAlgValuesSupported disco
 
     body :: [ (ByteString, ByteString) ]
     body  = [ ("grant_type", "authorization_code")

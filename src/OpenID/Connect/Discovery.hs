@@ -22,6 +22,7 @@ module OpenID.Connect.Discovery
 
 --------------------------------------------------------------------------------
 -- Imports:
+import Crypto.JOSE.JWA.JWS
 import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
 import GHC.Generics (Generic)
@@ -91,7 +92,7 @@ data Discovery = Discovery
     -- ^ JSON array containing a list of the Subject Identifier types
     -- that this OP supports.
 
-  , idTokenSigningAlgValuesSupported :: NonEmpty Text
+  , idTokenSigningAlgValuesSupported :: NonEmpty Alg
     -- ^ JSON array containing a list of the JWS signing algorithms
     -- (alg values) supported by the OP for the ID Token to encode the
     -- Claims in a JWT.
@@ -106,7 +107,7 @@ data Discovery = Discovery
     -- (enc values) supported by the OP for the ID Token to encode the
     -- Claims in a JWT.
 
-  , userinfoSigningAlgValuesSupported :: Maybe (NonEmpty Text)
+  , userinfoSigningAlgValuesSupported :: Maybe (NonEmpty Alg)
     -- ^ JSON array containing a list of the JWS signing algorithms
     -- (alg values).
 
@@ -118,7 +119,7 @@ data Discovery = Discovery
     -- ^ JSON array containing a list of the JWE encryption algorithms
     -- (enc values).
 
-  , requestObjectSigningAlgValuesSupported :: Maybe (NonEmpty Text)
+  , requestObjectSigningAlgValuesSupported :: Maybe (NonEmpty Alg)
     -- ^ JSON array containing a list of the JWS signing algorithms
     -- (alg values) supported by the OP for Request Objects, which are
     -- described in Section 6.1 of OpenID Connect Core 1.0.
@@ -139,7 +140,7 @@ data Discovery = Discovery
     -- ^ JSON array containing a list of Client Authentication methods
     -- supported by this Token Endpoint.
 
-  , tokenEndpointAuthSigningAlgValuesSupported :: Maybe (NonEmpty Text)
+  , tokenEndpointAuthSigningAlgValuesSupported :: Maybe (NonEmpty Alg)
     -- ^ JSON array containing a list of the JWS signing algorithms
     -- (alg values) supported by the Token Endpoint for the signature
     -- on the JWT used to authenticate the Client at the Token
