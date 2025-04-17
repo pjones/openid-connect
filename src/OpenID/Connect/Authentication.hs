@@ -22,16 +22,19 @@ module OpenID.Connect.Authentication
   , ClientID
   , ClientRedirectURI
   , AuthenticationRequest(..)
+  , clientSecretAsJWK
   ) where
 
 --------------------------------------------------------------------------------
 -- Imports:
 import Control.Applicative ((<|>))
 import Crypto.JOSE.JWK (JWK)
+import qualified Crypto.JOSE.JWK as JWK
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import Data.ByteString (ByteString)
 import Data.Text (Text)
+import qualified Data.Text.Encoding as Text
 import GHC.Generics (Generic)
 import Network.HTTP.Types (QueryItem)
 import qualified Network.URI as Network
@@ -70,6 +73,16 @@ data ClientSecret
 --
 -- @since 0.1.0.0
 type ClientID = Text
+
+--------------------------------------------------------------------------------
+-- | Get credentials as a JWK, if applicable
+clientSecretAsJWK :: ClientSecret -> Maybe JWK
+clientSecretAsJWK (AssertionPrivateKey jwk) =
+  Just jwk
+-- Use the @client_secret@ as a /key/ to sign a JWT.
+clientSecretAsJWK (AssignedAssertionText keyBytes) =
+  Just $ JWK.fromOctets $ Text.encodeUtf8 keyBytes
+clientSecretAsJWK _ = Nothing
 
 --------------------------------------------------------------------------------
 -- | The client (relying party) redirection URL previously registered

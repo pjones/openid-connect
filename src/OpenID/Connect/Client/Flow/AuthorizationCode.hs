@@ -428,7 +428,7 @@ exchangeCodeForIdentityToken https now disco creds user = do
     processResponse res =
       parseResponse res
       & bimap InvalidProviderTokenResponseError fst
-      >>= (decodeIdentityToken >>> first TokenDecodingError)
+      >>= (decodeIdentityToken creds >>> first TokenDecodingError)
 
     authMethods :: [ClientAuthentication]
     authMethods = maybe [ClientSecretPost] NonEmpty.toList
